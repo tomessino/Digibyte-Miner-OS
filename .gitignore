@@ -1,0 +1,9 @@
+# Baufertige Dateien, lassen sich neu erzeugen
+firmware/build/
+tools/design/out/
+tools/web/out/
+_pycache_/
+*.pyc
+
+# NIE veröffentlichen: Das Flash-Backup enthält das WLAN-Passwort, die Logs Wallet und WLAN-Namen
+geraetetest/
