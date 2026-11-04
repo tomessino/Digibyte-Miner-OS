@@ -2,10 +2,10 @@
 
 ## Fertige Datei flashen
 
-`Tomessino-DGB-Miner-v7.4.5-firmware.bin` enthält den ganzen Flash und löscht vorhandene Einstellungen.
+`Tomessino-DGB-Miner-v7.6.0-firmware.bin` enthält den ganzen Flash und löscht vorhandene Einstellungen.
 
 ```bash
-esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600 write-flash 0x0 Tomessino-DGB-Miner-v7.4.5-firmware.bin
+esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600 write-flash 0x0 Tomessino-DGB-Miner-v7.6.0-firmware.bin
 ```
 
 Antwortet der Chip nicht, beim Start des Befehls die BOOT-Taste halten.
@@ -42,7 +42,7 @@ arduino-cli upload -p /dev/ttyUSB0 --fqbn "esp32:esp32:esp32:CPUFreq=240,FlashSi
 arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
 ```
 
-Nach dem Start sollten dort `SELFTEST … OK` und `HWTEST OK 256/256` stehen.
+Nach dem Start sollten dort `SELFTEST … OK` und `HWTEST OK 4096/4096 fest` stehen (bis 7.5.0: `HWTEST OK 256/256`). `Pollen` statt `fest` heißt: Die schnellere Schleife hat den Test nicht bestanden oder der Chip läuft nicht mit 240 MHz.
 
 ## Grafiken und Dashboard ändern
 

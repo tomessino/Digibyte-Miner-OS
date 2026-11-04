@@ -231,6 +231,82 @@ static void fillRank(UiData& d) {
   timeOfEvent(lastSeen, d.rankUpdated, sizeof(d.rankUpdated));
 }
 
+// ================================================================
+// LEUCHTEN der Zählersymbole auf der Miner-Seite
+// Bei neuem Wert 350 ms grün, dann 450 ms halb, dann wieder weiß.
+// ================================================================
+static uint32_t pulseAt[4];
+static const uint32_t PULSE_FULL = 350, PULSE_END = 800;
+
+static uint8_t pulseLevel(int i, uint32_t now) {
+  if (!pulseAt[i]) return 0;
+  uint32_t e = now - pulseAt[i];
+  return e < PULSE_FULL ? 2 : e < PULSE_END ? 1 : 0;
+}
+
+// ================================================================
+// RGB-LED auf der Rückseite (Low = an, daher 255 - Wert)
+// ================================================================
+void ledInit() {
+  analogWrite(PIN_LED_R, 255);
+  analogWrite(PIN_LED_G, 255);
+  analogWrite(PIN_LED_B, 255);
+}
+
+void ledTick(uint32_t now) {
+  static uint32_t tLed = 0;
+  if (now - tLed < 40) return;
+  tLed = now;
+  uint8_t r = 0, g = 0, b = 0;
+  if (cfg.ledMode == 1) {
+    r = cfg.ledColor >> 16; g = cfg.ledColor >> 8; b = cfg.ledColor;
+  } else if (cfg.ledMode == 2) {
+    // Farbkreis in rund 14 Sekunden
+    uint32_t h = (now / 40) % 360, x = (h % 60) * 255 / 60;
+    switch (h / 60) {
+      case 0: r = 255;     g = x;       break;
+      case 1: r = 255 - x; g = 255;     break;
+      case 2: g = 255;     b = x;       break;
+      case 3: g = 255 - x; b = 255;     break;
+      case 4: r = x;       b = 255;     break;
+      default: r = 255;    b = 255 - x; break;
+    }
+  }
+  uint32_t k = cfg.ledBright;   // 0–100
+  analogWrite(PIN_LED_R, 255 - r * k / 100);
+  analogWrite(PIN_LED_G, 255 - g * k / 100);
+  analogWrite(PIN_LED_B, 255 - b * k / 100);
+}
+
+void displayWatch(uint32_t now) {
+  static uint32_t lastJobs, lastShares, lastNet;
+  static double lastBest = -1;
+  static bool init = false;
+  uint32_t net = job.valid ? (uint32_t)job.netDiff : 0;
+  double best = miner.bestDiff + miner.bestDiffAllTime;
+  if (!init) { lastJobs = miner.jobs; lastShares = miner.sharesOk; lastNet = net; lastBest = best; init = true; }
+  bool hit = false;
+  if (miner.jobs != lastJobs)       { lastJobs = miner.jobs;       pulseAt[PULSE_JOBS] = now | 1;   hit = true; }
+  if (net != lastNet)               { lastNet = net;               pulseAt[PULSE_NET] = now | 1;    hit = true; }
+  if (best != lastBest)             { lastBest = best;             pulseAt[PULSE_BEST] = now | 1;   hit = true; }
+  if (miner.sharesOk != lastShares) { lastShares = miner.sharesOk; pulseAt[PULSE_SHARES] = now | 1; hit = true; }
+  if (curPage == PAGE_PRICE && cfg.marketView == 2) {
+    static uint32_t lastView;
+    uint32_t v = (now / 10000) % 2;
+    if (v != lastView) { lastView = v; tDisplay = 0; }
+  }
+  if (curPage != PAGE_MINER) return;
+  // Zeichnen bei Beginn und bei jedem Stufenwechsel, nicht erst im 3-s-Takt
+  static uint8_t shown[4];
+  bool change = hit;
+  for (int i = 0; i < 4; i++) {
+    uint8_t lv = pulseLevel(i, now);
+    if (lv != shown[i]) { shown[i] = lv; change = true; }
+    if (!lv) pulseAt[i] = 0;
+  }
+  if (change) tDisplay = 0;
+}
+
 void tftUpdate() {
   // Auch gedimmt weiterzeichnen, sonst stünden Uhr und Werte still.
   if (colorBars) return;
@@ -269,6 +345,9 @@ void tftUpdate() {
 
   d.hashrate    = miner.hashrate;
   d.poolDiff    = miner.difficultyF;
+  d.jobs        = miner.jobs;
+  d.blockHits   = miner.blockHits;
+  for (int i = 0; i < 4; i++) d.pulse[i] = pulseLevel(i, millis());
   d.netDiff     = job.valid ? job.netDiff : 0;
   d.bestSession = miner.bestDiff;
   d.bestAll     = miner.bestDiffAllTime;
@@ -283,6 +362,20 @@ void tftUpdate() {
     d.coins[i].usd = has ? px.altUsd[i-1] : 0;
     d.coins[i].chg = has ? px.altChg[i-1] : 0;
   }
+  // 7-Tage-Verlauf: Kopie unter dem Mutex, die Zeiger zeigen in diese Kopie
+  static SparkSet sp;
+  if (stateMutex && xSemaphoreTake(stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+    sp = sparks;
+    xSemaphoreGive(stateMutex);
+  }
+  for (int i = 0; i < 6; i++) {
+    int k = i == 0 ? COIN_DGB : COIN_WATCH + i - 1;
+    bool has = i == 0 || i - 1 < watchCount;
+    d.coins[i].spark = has && sp.n[k] > 1 ? sp.pts[k] : nullptr;
+    d.coins[i].sparkN = has ? sp.n[k] : 0;
+  }
+  // Kursseite: Kurse, Charts oder alle 10 Sekunden im Wechsel
+  d.marketChart = cfg.marketView == 1 || (cfg.marketView == 2 && (millis() / 10000) % 2 == 1);
 
   bool isF = strcmp(cfg.weatherTempUnit, "F") == 0;
   d.wxValid = wx.valid;

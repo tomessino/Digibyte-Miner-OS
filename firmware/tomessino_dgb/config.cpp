@@ -48,6 +48,15 @@ void loadConfig() {
   cfg.weatherAutoLoc  = prefs.getBool("wAuto", true);
   prefs.getString("wCity", cfg.weatherCity, sizeof(cfg.weatherCity));
   if (strlen(cfg.weatherCity) == 0) strlcpy(cfg.weatherCity, "Berlin, Germany", sizeof(cfg.weatherCity));
+  if (!validLatLon(cfg.weatherLat, cfg.weatherLon)) { cfg.weatherLat = 52.5200f; cfg.weatherLon = 13.4050f; }
+  cfg.weatherGeo      = prefs.getBool("wGeo", false);
+  cfg.ledMode         = prefs.getUChar("ledM", 2);
+  if (cfg.ledMode > 2) cfg.ledMode = 2;
+  cfg.ledColor        = prefs.getULong("ledC", 0x0066CC) & 0xFFFFFF;
+  cfg.ledBright       = prefs.getUChar("ledB", 30);
+  if (cfg.ledBright > 100) cfg.ledBright = 100;
+  cfg.marketView      = prefs.getUChar("mktV", 2);
+  if (cfg.marketView > 2) cfg.marketView = 2;
   prefs.getString("wTU", cfg.weatherTempUnit, sizeof(cfg.weatherTempUnit));
   if (strlen(cfg.weatherTempUnit) == 0) strlcpy(cfg.weatherTempUnit, "C", sizeof(cfg.weatherTempUnit));
   prefs.getString("wSU", cfg.weatherSpeedUnit, sizeof(cfg.weatherSpeedUnit));
@@ -85,6 +94,11 @@ void saveConfig() {
   prefs.putFloat("wLon",  cfg.weatherLon);
   prefs.putBool("wAuto",  cfg.weatherAutoLoc);
   prefs.putString("wCity",cfg.weatherCity);
+  prefs.putBool("wGeo",   cfg.weatherGeo);
+  prefs.putUChar("ledM",  cfg.ledMode);
+  prefs.putULong("ledC",  cfg.ledColor);
+  prefs.putUChar("ledB",  cfg.ledBright);
+  prefs.putUChar("mktV",  cfg.marketView);
   prefs.putString("wTU",  cfg.weatherTempUnit);
   prefs.putString("wSU",  cfg.weatherSpeedUnit);
   prefs.putUShort("wIntv",cfg.weatherIntervalMin);

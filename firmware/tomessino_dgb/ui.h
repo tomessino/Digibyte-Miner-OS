@@ -34,7 +34,12 @@ struct UiCoin {
   const char* sym;
   double usd;        // <= 0: keine Daten
   double chg;
+  const float* spark;  // 7-Tage-Verlauf, älteste zuerst; nullptr: keiner
+  int    sparkN;
 };
+
+// Leuchtstufe der Zählersymbole: 0 weiß, 1 halb, 2 voll grün
+enum UiPulseRow { PULSE_JOBS=0, PULSE_NET=1, PULSE_BEST=2, PULSE_SHARES=3 };
 
 // Alle Werte, die die Seiten anzeigen. display.cpp füllt die Struktur.
 struct UiData {
@@ -55,6 +60,9 @@ struct UiData {
   uint32_t totalHash;
   int      workers;
   double   poolDiff;
+  uint32_t jobs;
+  uint32_t blockHits;
+  uint8_t  pulse[4];    // UiPulseRow
   double   netDiff;     // 0: noch kein Job
   double   bestSession;
   double   bestAll;
@@ -63,6 +71,7 @@ struct UiData {
   // Kurse
   double   btcUsd, btcChg;
   UiCoin   coins[6];
+  bool     marketChart; // Kursseite: true = 7-Tage-Charts
   // Wetter
   bool     wxValid;
   float    wxTemp, wxFeels, wxPressure, wxWind;

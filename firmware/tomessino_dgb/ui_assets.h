@@ -29,3 +29,7 @@ extern const UiFont F_SEG90;
 enum UiWeatherIcon { ICON_CLEAR, ICON_PARTLY, ICON_CLOUD, ICON_FOG, ICON_RAIN, ICON_SNOW, ICON_THUNDER };
 extern const UiIcon ui_icons_big[7];
 extern const UiIcon ui_icons_small[7];
+
+struct UiMask  { uint8_t w, h; const uint8_t* a; };
+enum UiMaskId { MASK_JOBS, MASK_NET, MASK_BEST, MASK_SHARES };
+extern const UiMask ui_masks[4];

@@ -64,7 +64,9 @@ void setup() {
   logMsg("TOUCH", "XPT2046 bereit");
 
   loadConfig();
+  ledInit();
   loadWatchlist();
+  weatherInit();
   webAuthSetup();
 
   // Selbsttest (Plan 1.9): Sollwerte wie in tools/test_hash_vektoren.py
@@ -82,6 +84,10 @@ void setup() {
   WiFiManager wm;
   wm.setConfigPortalTimeout(AP_TIMEOUT);
   wm.setConnectTimeout(20);
+  // Mehrere Versuche vor dem Portal (E35): Ein einzelner Fehlschlag, etwa direkt
+  // nach einem Reset, öffnete sonst sofort das Portal, obwohl das WLAN gespeichert ist.
+  // Je Versuch höchstens 20 s, das Portal kommt also nach spätestens rund 85 s.
+  wm.setConnectRetries(4);
   wm.setAPClientCheck(true);
 
   // Extra-Felder im Portal
@@ -89,6 +95,11 @@ void setup() {
   WiFiManagerParameter pPool1("pool1", "Pool 1 Host", cfg.pool1Host, 65);
   wm.addParameter(&pWallet);
   wm.addParameter(&pPool1);
+
+  // Nach dem Portal neu starten: Der Portal-Webserver von WiFiManager hielt
+  // sonst Port 80, das Dashboard war erst nach einem Neustart erreichbar.
+  static bool portalSaved = false;
+  wm.setSaveConfigCallback([]() { portalSaved = true; });
 
   tftWifiSetup();
 
@@ -108,6 +119,13 @@ void setup() {
   if (strlen(pWallet.getValue()) > 10 && strcmp(pWallet.getValue(), cfg.wallet) != 0) { strlcpy(cfg.wallet, pWallet.getValue(), sizeof(cfg.wallet)); changed = true; }
   if (strlen(pPool1.getValue()) > 3 && strcmp(pPool1.getValue(), cfg.pool1Host) != 0) { strlcpy(cfg.pool1Host, pPool1.getValue(), sizeof(cfg.pool1Host)); changed = true; }
   if (changed) saveConfig();
+  if (portalSaved) {
+    logMsg("WIFI", "WLAN aus dem Portal gespeichert, Neustart");
+    tft.fillScreen(C_BG);
+    tft.setTextColor(C_ACCENT, C_BG); tft.setTextSize(1);
+    tft.setCursor(6, 60); tft.print("WLAN gespeichert - Neustart...");
+    delay(1500); ESP.restart();
+  }
 
   logMsg("WIFI", (WiFi.SSID() + " / " + WiFi.localIP().toString()).c_str());
   tftConnected();
@@ -198,6 +216,8 @@ static void appLoop() {
   uint32_t now = millis();
 
   inputTick();  // Touch + Button
+  displayWatch(now);
+  ledTick(now);
 
   wifiChangeTick();
 

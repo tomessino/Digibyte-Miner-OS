@@ -7,7 +7,7 @@
 // FIRMWARE IDENTITÄT
 // ================================================================
 #define FW_NAME      "Tomessino-DGB"
-#define FW_VERSION   "7.4.5"
+#define FW_VERSION   "7.6.0"
 #define FW_FULL      FW_NAME " v" FW_VERSION
 #define COIN_NAME    "DigiByte"
 #define COIN_TICK    "DGB"
@@ -18,6 +18,9 @@
 // ================================================================
 #define PIN_BL       21
 #define PIN_BTN      0        // Boot-Button = GPIO0 (Seite wechseln / Long-Press Config)
+#define PIN_LED_R    4        // RGB-LED auf der Rückseite, Low = an
+#define PIN_LED_G    16
+#define PIN_LED_B    17
 #define BTN_LONG_MS  3000     // 3s Long-Press → Config-Modus
 #define BTN_RESET_MS 10000    // 10s Long-Press → Dashboard-Passwort löschen
 #define BTN_TAP_MS   50       // Entprell
@@ -85,7 +88,17 @@ struct Config {
   uint16_t weatherIntervalMin  = 15;    // Update-Intervall in Minuten
   char     watchlist[120] = "cardano:ADA,dogecoin:DOGE,ecash:XEC,shiba-inu:SHIB,pepe:PEPE";
   char     webPass[33]    = "";         // leer: Dashboard ohne Passwort
+  bool     weatherGeo     = false;      // Ortsname geändert: Koordinaten beim nächsten Abruf suchen
+  uint8_t  ledMode        = 2;          // RGB-LED hinten: 0 aus, 1 feste Farbe, 2 Farbwechsel
+  uint32_t ledColor       = 0x0066CC;   // feste Farbe, 0xRRGGBB
+  uint8_t  ledBright      = 30;         // 0–100 %
+  uint8_t  marketView     = 2;          // Kursseite: 0 Kurse, 1 Charts, 2 abwechselnd
 };
+
+// Koordinaten außerhalb von Breite ±90 / Länge ±180 liefern bei Open-Meteo einen Fehler
+inline bool validLatLon(float lat, float lon) {
+  return lat >= -90.0f && lat <= 90.0f && lon >= -180.0f && lon <= 180.0f && !(lat == 0.0f && lon == 0.0f);
+}
 extern Config cfg;
 
 // ================================================================

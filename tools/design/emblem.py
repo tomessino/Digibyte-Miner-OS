@@ -107,8 +107,9 @@ def _icon_download(p):
     p.line([(12, 66), (12, 86), (88, 86), (88, 66)], 10)
 
 
-def _icon_globe(p):
-    p.circle(50, 50, 40, fill=BLUE_DARK, outline=WHITE, width=7)
+def _icon_globe(p, mono=False):
+    # mono: ohne Füllung, als Maske für die Firmware, die das Symbol selbst einfärbt
+    p.circle(50, 50, 40, fill=None if mono else BLUE_DARK, outline=WHITE, width=7)
     p.line([(11, 50), (89, 50)], 5)
     p.arc(50, 50, 26, 90, 270, 5)
     p.arc(50, 50, 26, 270, 450, 5)
@@ -166,11 +167,42 @@ def _icon_ladder(p):
         p.line([(50 - 16 * t, 6 + 88 * t), (78 - 16 * t, 6 + 88 * t)], 7, BLUE)
 
 
+def _icon_trophy(p):
+    p.d.chord((*p._p(22, 2), *p._p(78, 70)), 0, 180, fill=BLUE)
+    p.rrect(22, 6, 78, 36, 2, fill=BLUE)
+    p.arc(22, 26, 14, 90, 270, 7, BLUE)
+    p.arc(78, 26, 14, 270, 450, 7, BLUE)
+    p.line([(50, 66), (50, 80)], 10, BLUE)
+    p.rrect(26, 80, 74, 94, 3, fill=BLUE)
+
+
+def _icon_users(p):
+    p.circle(34, 30, 15, fill=BLUE)
+    p.d.chord((*p._p(8, 50), *p._p(60, 110)), 180, 360, fill=BLUE)
+    p.circle(70, 36, 12, fill=BLUE)
+    p.d.chord((*p._p(50, 56), *p._p(92, 106)), 180, 360, fill=BLUE)
+
+
+def _icon_bolt(p):
+    p.poly([(58, 2), (18, 56), (46, 56), (36, 98), (82, 40), (54, 40), (66, 2)], BLUE)
+
+
 _ICONS = {"download": _icon_download, "globe": _icon_globe, "chart": _icon_chart, "share": _icon_share, "wifi": _icon_wifi,
-          "sunrise": _icon_sun_low, "drop": _icon_drop, "gauge": _icon_gauge, "pin": _icon_pin, "ladder": _icon_ladder}
+          "sunrise": _icon_sun_low, "drop": _icon_drop, "gauge": _icon_gauge, "pin": _icon_pin, "ladder": _icon_ladder,
+          "trophy": _icon_trophy, "users": _icon_users, "bolt": _icon_bolt}
 
 
 def icon(name, w, h):
     p = Pen(w, h, 100, 100)
     _ICONS[name](p)
     return p.done()
+
+
+def mask(name, w, h):
+    """Nur die Deckkraft eines Symbols (0–255), die Farbe setzt die Firmware."""
+    p = Pen(w, h, 100, 100)
+    if name == "globe":
+        _icon_globe(p, mono=True)
+    else:
+        _ICONS[name](p)
+    return p.done().split()[3]

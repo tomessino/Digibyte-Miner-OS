@@ -21,6 +21,7 @@ struct SwarmPeer {
   uint32_t sharesRej     = 0;
   double   bestDiffAllTime = 0;
   uint32_t blockHits     = 0;
+  int32_t  jobs          = -1;    // -1: Peer sendet keine Jobs (vor 7.6.0)
   uint32_t uptime        = 0;
   float    tempC         = 0;
   uint32_t lastSeen      = 0;     // millis() beim letzten Empfang
@@ -42,8 +43,11 @@ struct PriceData {
 };
 extern PriceData prices;
 extern WatchEntry watchlist[WATCH_MAX];
+extern SparkSet   sparks;        // 7-Tage-Verlauf, unter stateMutex
+extern uint32_t   sparksAt;      // millis() des letzten Abrufs, 0 = noch keiner
 extern int        watchCount;
 void loadWatchlist();   // aus cfg.watchlist, nach loadConfig()
+void weatherInit();     // nach loadConfig(): Stadtname bei festem Standort sofort anzeigen
 
 // ================================================================
 // WETTER-DATEN (Open-Meteo, kostenlos, kein API-Key nötig)

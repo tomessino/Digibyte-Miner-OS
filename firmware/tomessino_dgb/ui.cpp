@@ -162,6 +162,67 @@ static void iconFld(int x, int y, const UiIcon& ic) {
   }
 }
 
+// Einfarbiges Symbol aus einer Deckkraft-Maske, Farbe zur Laufzeit
+static void maskFld(int x, int y, const UiMask& m, uint16_t col) {
+  uint32_t hash = (uint32_t)(uintptr_t)m.a ^ ((uint32_t)col << 8);
+  bool same = slotSame(hash);
+  slotIdx++;
+  if (same || !pushFn) return;
+  for (int by = 0; by < m.h; by += BAND_H) {
+    int bh = (m.h - by < BAND_H) ? m.h - by : BAND_H;
+    for (int r = 0; r < bh; r++) {
+      const uint16_t* bgRow = &curBg[(y + by + r) * 320 + x];
+      const uint8_t*  al  = &m.a[(by + r) * m.w];
+      uint16_t* dst = &band[r * m.w];
+      for (int c = 0; c < m.w; c++) dst[c] = al[c] ? blend565(col, bgRow[c], al[c]) : bgRow[c];
+    }
+    pushFn(x, y + by, m.w, bh, band);
+  }
+}
+
+// Verlaufslinie mit schwacher Fläche darunter. Skaliert auf Minimum und Maximum der Punkte.
+static void chartFld(int x, int y, int w, int h, const float* pts, int n, uint16_t col, bool area) {
+  uint32_t hash = (2166136261u ^ col) + area;
+  for (int i = 0; i < n; i++) { uint32_t v; memcpy(&v, &pts[i], 4); hash = (hash ^ v) * 16777619u; }
+  hash ^= (uint32_t)n;
+  bool same = slotSame(hash);
+  slotIdx++;
+  if (same || !pushFn) return;
+
+  float lo = pts[0], hi = pts[0];
+  for (int i = 1; i < n; i++) { if (pts[i] < lo) lo = pts[i]; if (pts[i] > hi) hi = pts[i]; }
+  const float pad = 2.0f;
+  float span = hi - lo;
+  static float ly[320];
+  for (int c = 0; c < w; c++) {
+    float t = (n > 1 && w > 1) ? (float)c * (n - 1) / (w - 1) : 0;
+    int i = (int)t; if (i >= n - 1) i = n > 1 ? n - 2 : 0;
+    float f = t - i;
+    float v = n > 1 ? pts[i] + (pts[i + 1] - pts[i]) * f : pts[0];
+    float k = span > 0 ? (v - lo) / span : 0.5f;
+    ly[c] = y + pad + (1.0f - k) * (h - 1 - 2 * pad);
+  }
+  for (int by = y; by < y + h; by += BAND_H) {
+    int bh = (y + h - by < BAND_H) ? y + h - by : BAND_H;
+    for (int r = 0; r < bh; r++) {
+      const uint16_t* bgRow = &curBg[(by + r) * 320 + x];
+      uint16_t* dst = &band[r * w];
+      float py = by + r + 0.5f;
+      for (int c = 0; c < w; c++) {
+        float a = ly[c], b = c ? ly[c - 1] : ly[c];
+        float top = a < b ? a : b, bot = a < b ? b : a;
+        float d = py < top ? top - py : py > bot ? py - bot : 0;
+        float cov = 1.3f - d;                       // Linie ca. 2 px, weiche Kante
+        uint16_t px = bgRow[c];
+        if (area && py > a) px = blend565(col, px, (uint8_t)(70 - 50 * (py - a) / h));   // Fläche, nach unten schwächer
+        if (cov > 0) px = blend565(col, px, cov >= 1 ? 255 : (uint8_t)(cov * 255));
+        dst[c] = px;
+      }
+    }
+    pushFn(x, by, w, bh, band);
+  }
+}
+
 static void paintBackground(int page) {
   curBg = BGS[page];
   for (int y = 0; y < 240; y += BAND_H) {
@@ -238,7 +299,8 @@ static void footer(const UiData& d, const char* right, uint16_t rightCol, uint16
 // SEITE 1: MINER — Vorlage 2_miner.jpg
 // ================================================================
 static void pageMiner(const UiData& d) {
-  char b[32];
+  char b[32], hr[12];
+  const char* unit;
   fld(6, 5, 62, 20, F_SEG18, U_WHITE, C, d.timeValid ? d.hhmm : "--:--");
 
   uint32_t u = d.uptime;
@@ -254,8 +316,18 @@ static void pageMiner(const UiData& d) {
   snprintf(b, sizeof(b), "%s", d.version);
   fld(4, 104, 64, 16, F_S13, U_WHITE, C, b);
 
+  // Gefundene Blöcke in der Plakette am Logo
+  if (d.blockHits > 99) snprintf(b, sizeof(b), "99+"); else snprintf(b, sizeof(b), "%u", (unsigned)d.blockHits);
+  fld(46, 81, 21, 14, F_S11, d.blockHits ? U_GREEN : U_WHITE, C, b);
+
+  // Symbole der Zählerzeilen: weiß, bei neuem Wert kurz grün
+  for (int i = 0; i < 4; i++) {
+    uint16_t col = d.pulse[i] >= 2 ? U_GREEN : d.pulse[i] == 1 ? blend565(U_GREEN, U_WHITE, 128) : U_WHITE;
+    maskFld(144, 34 + i * 25, ui_masks[i], col);
+  }
+
   char a[14], c[14];
-  fmtDiff(d.poolDiff, a, sizeof(a), 1);
+  snprintf(a, sizeof(a), "%u", (unsigned)d.jobs);
   fld(176, 33, 136, 23, F_S18, U_WHITE, L, a);
   if (d.netDiff > 0) fmtDiff(d.netDiff, a, sizeof(a), 1); else snprintf(a, sizeof(a), "--");
   fld(176, 58, 136, 23, F_S18, U_WHITE, L, a);
@@ -268,34 +340,33 @@ static void pageMiner(const UiData& d) {
 
   fld(10, 151, 124, 22, F_S15, U_WHITE, C, d.wifi ? d.ip : "---.---.---.---");
 
-  char hr[12]; const char* unit;
   fmtHash(d.hashrate, hr, sizeof(hr), &unit);
   fld(158, 146, 96, 30, F_SEG30, U_BLUE, R, hr);
   fld(258, 152, 54, 22, F_B15, U_WHITE, L, unit);
 
+  // Fuß: drei Kacheln, Titel und Symbole liegen im Hintergrund
   fmtDiff(d.bestAll, a, sizeof(a), 2);
-  fld(6, 206, 100, 28, F_SEG18, U_BLUE, L, a);
+  fld(8, 205, 92, 28, F_SEG18, U_BLUE, C, a);
   snprintf(b, sizeof(b), "%d", d.workers);
-  fld(120, 206, 80, 28, F_SEG18, U_BLUE, C, b);
-
-  uint32_t th = d.totalHash;
-  if (th >= 1000000u)   snprintf(b, sizeof(b), "%uM" CC_ALT " H/s", (unsigned)(th / 1000000u));
-  else if (th >= 1000u) snprintf(b, sizeof(b), "%uK" CC_ALT " H/s", (unsigned)(th / 1000u));
-  else                  snprintf(b, sizeof(b), "%u" CC_ALT " H/s", (unsigned)th);
-  fld(208, 206, 106, 28, F_S18, U_BLUE, R, b);
+  fld(114, 205, 92, 28, F_SEG18, U_BLUE, C, b);
+  fmtHash(d.totalHash, hr, sizeof(hr), &unit);
+  fld(220, 205, 54, 28, F_SEG18, U_BLUE, R, hr);
+  fld(277, 210, 37, 18, F_S13, U_WHITE, L, unit);
 }
 
 // ================================================================
 // SEITE 2: UHR — Vorlage 3_uhr.jpg
-// Oben links: BTC-Kurs mit 24h-Änderung.
+// Oben links: BTC-Kurs mit 24h-Änderung, grün oder rot nach Trend.
 // ================================================================
 static void pageClock(const UiData& d) {
   static const char* WD[] = {"SUN","MON","TUE","WED","THU","FRI","SAT"};
   char b[32];
-  if (d.btcUsd > 0) snprintf(b, sizeof(b), "$%.0f", d.btcUsd); else snprintf(b, sizeof(b), "$--");
-  fld(4, 6, 124, 30, F_SEG26, U_BLUE, L, b);
-  if (d.btcUsd > 0) snprintf(b, sizeof(b), "(%.2f%%)", d.btcChg); else snprintf(b, sizeof(b), "(--)");
-  fld(130, 14, 60, 18, F_S13, U_WHITE, L, b);
+  bool btc = d.btcUsd > 0;
+  uint16_t trend = d.btcChg < 0 ? U_RED : U_GREEN;
+  if (btc) snprintf(b, sizeof(b), "$%.0f", d.btcUsd); else snprintf(b, sizeof(b), "$--");
+  fld(4, 6, 124, 30, F_SEG26, btc ? trend : U_BLUE, L, b);
+  if (btc) snprintf(b, sizeof(b), "(%.2f%%)", d.btcChg); else snprintf(b, sizeof(b), "(--)");
+  fld(130, 14, 60, 18, F_S13, btc ? trend : U_WHITE, L, b);
 
   char hr[12]; const char* unit;
   fmtHash(d.hashrate, hr, sizeof(hr), &unit);
@@ -317,18 +388,36 @@ static void pageClock(const UiData& d) {
 // SEITE 3: KURSE — Vorlage 4_kurse.jpg
 // ================================================================
 static void pageMarkets(const UiData& d) {
-  char b[20];
+  char b[24], p[20];
   for (int i = 0; i < 6; i++) {
     int y = 10 + i * 31;
     const UiCoin& co = d.coins[i];
-    fld(8, y, 62, 22, F_S18, U_WHITE, L, co.sym);
-    fmtPrice(co.usd, b, sizeof(b));
-    fld(90, y, 118, 22, F_S18, U_BLUE2, L, b);
     bool has = co.usd > 0;
-    if (has) snprintf(b, sizeof(b), "%+.2f%%", co.chg); else snprintf(b, sizeof(b), "--");
-    fld(212, y, 102, 22, F_S18, (has && co.chg < 0) ? U_RED : U_BLUE2, R, b);
+    if (!d.marketChart) {
+      fld(10, y, 62, 22, F_S18, U_WHITE, L, co.sym);
+      fmtPrice(co.usd, p, sizeof(p));
+      snprintf(b, sizeof(b), "$ " CC_ALT "%s", p);
+      fld(74, y, 136, 22, F_S18, U_WHITE, L, b, U_BLUE2);
+      if (has) snprintf(b, sizeof(b), "%+.2f%%", co.chg); else snprintf(b, sizeof(b), "--");
+      fld(212, y, 100, 22, F_S18, !has ? U_MUTED : co.chg < 0 ? U_RED : U_GREEN, R, b);
+      continue;
+    }
+    // Chart-Ansicht: Symbol, 7-Tage-Linie, Preis und 7-Tage-Änderung
+    fld(10, y, 54, 22, F_S15, U_WHITE, L, co.sym);
+    bool sp = co.spark && co.sparkN > 1 && co.spark[0] > 0;
+    float chg7 = sp ? (co.spark[co.sparkN - 1] / co.spark[0] - 1.0f) * 100.0f : 0;
+    uint16_t col = !sp ? U_DIM : chg7 < 0 ? U_RED : U_GREEN;
+    static const float FLAT[2] = {1, 1};
+    chartFld(64, y - 1, 150, 25, sp ? co.spark : FLAT, sp ? co.sparkN : 2, col, sp);
+    fmtPrice(co.usd, p, sizeof(p));
+    snprintf(b, sizeof(b), "$%s", p);
+    fld(218, y - 3, 94, 14, F_S13, U_BLUE2, R, b);
+    if (sp) snprintf(b, sizeof(b), "7T %+.1f%%", chg7); else snprintf(b, sizeof(b), "7T --");
+    fld(218, y + 12, 94, 14, F_S13, col == U_DIM ? U_MUTED : col, R, b);
   }
-  char pg[8]; snprintf(pg, sizeof(pg), "%d/5", d.page + 1);
+  char pg[16];
+  if (d.marketChart) snprintf(pg, sizeof(pg), "7T-Chart %d/5", d.page + 1);
+  else snprintf(pg, sizeof(pg), "%d/5", d.page + 1);
   footer(d, pg, U_WHITE, U_WHITE);
 }
 
@@ -361,9 +450,11 @@ static void pageWeather(const UiData& d) {
   else snprintf(b, sizeof(b), "Feels like " CC_ALT "--");
   fld(160, 62, 156, 20, F_S15, U_WHITE, R, b, U_BLUE);
   if (d.wxValid) snprintf(b, sizeof(b), "%.0f %s", d.wxWind, d.wxSpeed); else snprintf(b, sizeof(b), "-- %s", d.wxSpeed);
-  fld(160, 82, 78, 20, F_S13, U_WHITE, R, b);
-  if (d.wxPmValid) snprintf(b, sizeof(b), "PM2.5 " CC_ALT "%d", d.wxPm25); else snprintf(b, sizeof(b), "PM2.5 " CC_ALT "--");
-  fld(244, 82, 72, 20, F_S13, U_WHITE, R, b, U_BLUE);
+  fld(158, 82, 56, 20, F_S13, U_WHITE, R, b);
+  // Feinstaub mit Einheit, sonst liest sich der Wert wie eine Ziffer ohne Bedeutung
+  if (d.wxPmValid) snprintf(b, sizeof(b), "PM2.5 " CC_ALT "%d" CC_MAIN "\xC2\xB5g/m\xC2\xB3", d.wxPm25);
+  else snprintf(b, sizeof(b), "PM2.5 " CC_ALT "--");
+  fld(216, 82, 100, 20, F_S13, U_WHITE, R, b, U_BLUE);
 
   for (int i = 0; i < 3; i++) {
     int y = 107 + i * 24;
@@ -429,7 +520,8 @@ static void pageRank(const UiData& d) {
 // ================================================================
 void uiDraw(const UiData& d) {
   int p = d.page % 5;
-  if (p != lastPage) { paintBackground(p); lastPage = p; }
+  int key = p | ((p == UI_MARKETS && d.marketChart) ? 8 : 0);   // andere Ansicht: Felder liegen anders
+  if (key != lastPage) { paintBackground(p); lastPage = key; }
   slotIdx = 0;
   switch (p) {
     case UI_MINER:   pageMiner(d);   break;

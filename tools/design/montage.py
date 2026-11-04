@@ -13,6 +13,9 @@ for name in PAGES:
     for v in ("voll", "leer", "breit"):
         Image.open(OUT / f"{name}_{v}.ppm").save(OUT / f"{name}_{v}.png")
 
+for v in ("voll", "leer", "breit"):
+    Image.open(OUT / f"chart_{v}.ppm").save(OUT / f"chart_{v}.png")
+
 sheet = Image.new("RGB", (CW * 2 + GAP, (CH + GAP) * len(PAGES) - GAP), (40, 40, 40))
 for i, name in enumerate(PAGES):
     for j, v in enumerate(("voll", "leer")):

@@ -6,6 +6,8 @@
 #include "config.h"
 #include "mining.h"
 #include "net_parse.h"
+#include <new>
+#include <Preferences.h>
 
 
 WiFiUDP         ntpUDP;
@@ -14,6 +16,8 @@ WiFiUDP         swarmUDP;
 
 PriceData prices;
 WatchEntry watchlist[WATCH_MAX];
+SparkSet   sparks;
+uint32_t   sparksAt = 0;
 int        watchCount = 0;
 WeatherData weather;
 SwarmPeer swarmPeers[MAX_SWARM_PEERS];
@@ -42,6 +46,7 @@ String dateStr() {
 // PREIS-ABRUF — HTTPS non-blocking (CoinGecko Port 443)
 // ================================================================
 static bool priceTaskRunning=false;
+alignas(SparkParser) static uint8_t parserMem[sizeof(SparkParser)];   // statt Task-Stack, der Parser hat ~1 KB
 
 void loadWatchlist() {
   int n = parseWatchlist(cfg.watchlist, watchlist, WATCH_MAX);
@@ -52,33 +57,83 @@ void loadWatchlist() {
   watchCount = n;
 }
 
-// HTTPS-GET für Kurse und Luftqualität. HTTP/1.0, damit die Antwort ohne
-// Chunked-Encoding kommt (bei beiden APIs geprüft). Liest bis die Gegenstelle
-// schließt, nicht nur bis der Empfangspuffer kurz leer ist.
+// ================================================================
+// HTTP-ABRUF — HTTP/1.0, damit die Antwort ohne Chunked-Encoding kommt.
+// Wartet nie blockierend: readStringUntil() lief bis zu 8 s ohne die CPU
+// abzugeben, auf Kern 0 lief dann der Task-Watchdog ab (Neustartschleife
+// bei ungewohnten Antworten, z. B. unpassenden Koordinaten).
+// ================================================================
+struct HttpSink { virtual bool write(const char* d, size_t n) = 0; virtual ~HttpSink() {} };
+
+struct StringSink : HttpSink {
+  String& s; size_t max;
+  StringSink(String& str, size_t m) : s(str), max(m) {}
+  bool write(const char* d, size_t n) override {
+    if (s.length() + n > max) return false;
+    s.concat(d, n);
+    return true;
+  }
+};
+
+struct SparkSink : HttpSink {
+  SparkParser& p;
+  explicit SparkSink(SparkParser& parser) : p(parser) {}
+  bool write(const char* d, size_t n) override { p.feed(d, n); return true; }
+};
+
+static int readHttp(Client& client, const char* host, const char* path, HttpSink& sink, size_t* bytes = nullptr) {
+  client.printf("GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: Tomessino-DGB/" FW_VERSION "\r\nConnection: close\r\n\r\n", path, host);
+  int status = 0; bool inBody = false; char line[160]; size_t ll = 0; char buf[512];
+  long contentLen = -1; size_t total = 0; int idle = 0;
+  uint32_t t = millis();
+  while (millis() - t < 12000) {
+    if (inBody && contentLen >= 0 && (long)total >= contentLen) break;
+    int avail = client.available();
+    if (avail <= 0) {
+      // Nach dem Verbindungsende noch kurz nachsehen, ob TLS noch Daten gepuffert hat
+      if (!client.connected() && ++idle > 25) break;
+      vTaskDelay(10 / portTICK_PERIOD_MS);
+      continue;
+    }
+    idle = 0;
+    if (!inBody) {
+      int c = client.read();
+      if (c < 0) { vTaskDelay(1); continue; }
+      if (c == '\n') {
+        line[ll] = 0;
+        if (!status && !strncmp(line, "HTTP/", 5) && ll >= 12) status = atoi(line + 9);
+        if (!strncasecmp(line, "Content-Length:", 15)) contentLen = atol(line + 15);
+        if (ll == 0 || (ll == 1 && line[0] == '\r')) inBody = true;
+        ll = 0;
+      } else if (ll < sizeof(line) - 1) line[ll++] = (char)c;
+      continue;
+    }
+    int n = client.read((uint8_t*)buf, sizeof(buf));
+    if (n <= 0) { vTaskDelay(1); continue; }
+    total += n;
+    if (!sink.write(buf, n)) { client.stop(); return -2; }
+  }
+  client.stop();
+  if (bytes) *bytes = total;
+  if (contentLen >= 0 && (long)total < contentLen) return -3;   // unvollständig
+  return status;
+}
+
 static int httpsGet(const char* host, const char* path, String& body, size_t maxLen) {
   WiFiClientSecure client;
   client.setInsecure();
   client.setTimeout(8000);
-  if (!client.connect(host,443)) return -1;
-  client.printf("GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: Tomessino-DGB/" FW_VERSION "\r\nConnection: close\r\n\r\n",path,host);
+  if (!client.connect(host, 443)) return -1;
+  StringSink sink(body, maxLen);
+  return readHttp(client, host, path, sink);
+}
 
-  int status=0; bool inBody=false; uint8_t buf[512];
-  uint32_t t=millis();
-  while ((client.connected()||client.available())&&millis()-t<12000) {
-    if (!client.available()) { vTaskDelay(10/portTICK_PERIOD_MS); continue; }
-    if (!inBody) {
-      String ln=client.readStringUntil('\n');
-      if (!status&&ln.startsWith("HTTP/")) status=ln.substring(9,12).toInt();
-      if (ln=="\r") inBody=true;
-      continue;
-    }
-    int n=client.read(buf,sizeof(buf));
-    if (n<=0) continue;
-    if (body.length()+n>maxLen) { client.stop(); return -2; }
-    body.concat((const char*)buf,n);
-  }
-  client.stop();
-  return status;
+static int httpGetPlain(const char* host, const char* path, String& body, size_t maxLen) {
+  WiFiClient client;
+  client.setTimeout(6000);
+  if (!client.connect(host, 80)) return -1;
+  StringSink sink(body, maxLen);
+  return readHttp(client, host, path, sink);
 }
 
 // Speicherstand nach TLS-Abrufen, für den Gerätetest
@@ -91,7 +146,7 @@ static void logTaskMem(const char* name) {
 // würden nie aufgeräumt. Am Gerät kostete das rund 6 KB Heap je Wetter-Abruf.
 static void priceFetch() {
   String body;
-  char ids[220], path[300];
+  char ids[220], path[320];
   if (!buildPriceIds(ids,sizeof(ids),watchlist,watchCount)) { logMsg("PRICE","Watchlist zu lang"); return; }
   snprintf(path,sizeof(path),"/api/v3/simple/price?ids=%s&vs_currencies=usd&include_24hr_change=true",ids);
   int st=httpsGet("api.coingecko.com",path,body,4096);
@@ -114,6 +169,33 @@ static void priceFetch() {
     } else logMsg("PRICE","JSON parse err");
   } else if (st==-1) logMsg("PRICE","HTTPS fehlgeschlagen");
   else logMsg("PRICE",(String("HTTP-Fehler ")+st).c_str());
+
+  // 7-Tage-Verlauf: alle 30 Minuten, nach einem Fehler frühestens nach 10 Minuten.
+  // Die Antwort hat rund 30 KB und wird nur durchgereicht, nicht gepuffert.
+  static uint32_t lastTry = 0;
+  if (lastTry && millis() - lastTry < (sparksAt ? 1800000UL : 600000UL)) return;
+  lastTry = millis();
+  body = String();
+  snprintf(path, sizeof(path), "/api/v3/coins/markets?vs_currency=usd&ids=%s&sparkline=true", ids);
+  static SparkSet fresh;
+  SparkParser* parser = new (parserMem) SparkParser(watchlist, watchCount, fresh);
+  WiFiClientSecure client;
+  client.setInsecure();
+  client.setTimeout(8000);
+  if (!client.connect("api.coingecko.com", 443)) { logMsg("PRICE", "Chart-Abruf: HTTPS fehlgeschlagen"); return; }
+  SparkSink sink(*parser);
+  size_t got = 0;
+  int cs = readHttp(client, "api.coingecko.com", path, sink, &got);
+  if (cs == 200 && parser->found() > 0) {
+    if (stateMutex && xSemaphoreTake(stateMutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+      sparks = fresh;
+      sparksAt = millis();
+      xSemaphoreGive(stateMutex);
+    }
+    logMsg("PRICE", (String("Charts ") + parser->found() + "/" + (2 + watchCount) + " (" + got + " B)").c_str());
+  } else {
+    logMsg("PRICE", (String("Chart-Abruf fehlgeschlagen: ") + cs + " (" + got + " B)").c_str());
+  }
 }
 
 void priceTaskFn(void* param) {
@@ -132,13 +214,13 @@ void fetchPrices() {
 // ================================================================
 void swarmBroadcast() {
   if (WiFi.status()!=WL_CONNECTED) return;
-  char buf[340];
+  char buf[420];
   snprintf(buf,sizeof(buf),
     "{\"fw\":\"%s\",\"coin\":\"DGB\",\"worker\":\"%s\",\"hr\":%lu,\"ok\":%lu,\"rej\":%lu,"
-    "\"diff\":%.6f,\"bestDiffAT\":%.4f,\"blocks\":%lu,"
+    "\"diff\":%.6f,\"bestDiffAT\":%.4f,\"blocks\":%lu,\"jobs\":%lu,"
     "\"pool\":\"%s\",\"ip\":\"%s\",\"up\":%lu,\"temp\":%.1f}",
     FW_FULL, cfg.worker, miner.hashrate, miner.sharesOk, miner.sharesRej,
-    miner.difficultyF, miner.bestDiffAllTime, miner.blockHits,
+    miner.difficultyF, miner.bestDiffAllTime, miner.blockHits, (unsigned long)miner.jobs,
     miner.poolDisp,
     WiFi.localIP().toString().c_str(), miner.uptime, miner.tempC);
   swarmUDP.beginPacket("255.255.255.255",55123);
@@ -152,7 +234,7 @@ void swarmListen() {
   int packetSize = swarmUDP.parsePacket();
   if (packetSize <= 0) return;
 
-  char buf[360];
+  char buf[440];
   int len = swarmUDP.read(buf, sizeof(buf)-1);
   if (len <= 0) return;
   buf[len] = '\0';
@@ -195,6 +277,7 @@ void swarmListen() {
   p.sharesRej        = doc["rej"]       | 0;
   p.bestDiffAllTime  = doc["bestDiffAT"]| 0.0;
   p.blockHits        = doc["blocks"]    | 0;
+  p.jobs             = doc["jobs"]      | -1L;   // ältere Firmware sendet keine Jobs
   p.uptime           = doc["up"]        | 0;
   p.tempC            = doc["temp"]      | 0.0f;
   p.lastSeen         = millis();
@@ -233,45 +316,60 @@ const char* weatherCodeDesc(int code) {
 static void weatherFetch() {
   // ── Schritt 1: Standort per IP ermitteln (nur wenn AutoLoc aktiv) ──
   if (cfg.weatherAutoLoc) {
-    WiFiClient geoClient;
-    if (geoClient.connect("ip-api.com", 80)) {
-      geoClient.print(
-        "GET /json/?fields=lat,lon,city,country HTTP/1.1\r\n"
-        "Host: ip-api.com\r\n"
-        "Connection: close\r\n\r\n"
-      );
-      uint32_t t = millis();
-      while (!geoClient.available() && millis()-t < 6000)
-        vTaskDelay(50/portTICK_PERIOD_MS);
-
-      String body = ""; bool inBody = false;
-      while (geoClient.available()) {
-        String ln = geoClient.readStringUntil('\n');
-        if (!inBody && ln == "\r") { inBody = true; continue; }
-        if (inBody) body += ln;
-        if (body.length() > 1024) break;
-      }
-      geoClient.stop();
-
-      int js = body.indexOf('{'), je = body.lastIndexOf('}');
-      if (js >= 0 && je > js) {
-        JsonDocument geoDoc;
-        if (!deserializeJson(geoDoc, body.substring(js, je+1))) {
-          float glat = geoDoc["lat"] | 0.0f;
-          float glon = geoDoc["lon"] | 0.0f;
-          const char* gcity = geoDoc["city"] | "";
-          const char* gcountry = geoDoc["country"] | "";
-          if (glat != 0.0f || glon != 0.0f) {
-            if (stateMutex && xSemaphoreTake(stateMutex, pdMS_TO_TICKS(200)) == pdTRUE) {
-              cfg.weatherLat = glat;
-              cfg.weatherLon = glon;
-              snprintf(cfg.weatherCity, sizeof(cfg.weatherCity), "%s, %s", gcity, gcountry);
-              xSemaphoreGive(stateMutex);
-            }
-            logMsg("WEATHER", (String("Standort: ") + cfg.weatherCity).c_str());
+    String body;
+    int st = httpGetPlain("ip-api.com", "/json/?fields=lat,lon,city,country", body, 1024);
+    if (st == 200) {
+      JsonDocument geoDoc;
+      if (!deserializeJson(geoDoc, body)) {
+        float glat = geoDoc["lat"] | 0.0f;
+        float glon = geoDoc["lon"] | 0.0f;
+        const char* gcity = geoDoc["city"] | "";
+        const char* gcountry = geoDoc["country"] | "";
+        if (glat != 0.0f || glon != 0.0f) {
+          if (stateMutex && xSemaphoreTake(stateMutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+            cfg.weatherLat = glat;
+            cfg.weatherLon = glon;
+            snprintf(cfg.weatherCity, sizeof(cfg.weatherCity), "%s, %s", gcity, gcountry);
+            xSemaphoreGive(stateMutex);
           }
+          logMsg("WEATHER", (String("Standort: ") + cfg.weatherCity).c_str());
         }
       }
+    } else {
+      logMsg("WEATHER", (String("Standort-Abfrage fehlgeschlagen: ") + st).c_str());
+    }
+  } else if (cfg.weatherGeo) {
+    // Fester Ort, nur der Name wurde geändert: Koordinaten bei Open-Meteo suchen
+    char path[200];
+    int pl = snprintf(path, sizeof(path), "/v1/search?count=1&language=de&format=json&name=");
+    for (const char* c = cfg.weatherCity; *c && *c != ',' && pl < (int)sizeof(path) - 4; c++) {
+      unsigned char u = (unsigned char)*c;
+      if (isalnum(u) || u == '-' || u == '.') path[pl++] = u;
+      else pl += snprintf(path + pl, sizeof(path) - pl, "%%%02X", u);
+    }
+    path[pl] = 0;
+    String body;
+    int st = httpsGet("geocoding-api.open-meteo.com", path, body, 4096);
+    JsonDocument geoDoc;
+    if (st == 200 && !deserializeJson(geoDoc, body)) {
+      JsonObject r0 = geoDoc["results"][0];
+      float glat = r0["latitude"] | 999.0f, glon = r0["longitude"] | 999.0f;
+      if (validLatLon(glat, glon)) {
+        cfg.weatherLat = glat;
+        cfg.weatherLon = glon;
+        logMsg("WEATHER", (String("Ort gefunden: ") + (const char*)(r0["name"] | "") + " " + String(glat, 2) + "/" + String(glon, 2)).c_str());
+      } else {
+        logMsg("WEATHER", "Ort nicht gefunden, Koordinaten bleiben");
+      }
+      cfg.weatherGeo = false;               // nicht bei jedem Abruf erneut suchen
+      Preferences p;
+      p.begin("tomDGB2", false);
+      p.putFloat("wLat", cfg.weatherLat);
+      p.putFloat("wLon", cfg.weatherLon);
+      p.putBool("wGeo", false);
+      p.end();
+    } else {
+      logMsg("WEATHER", (String("Ortssuche fehlgeschlagen: ") + st).c_str());
     }
   }
 
@@ -280,11 +378,7 @@ static void weatherFetch() {
   weather.lon = cfg.weatherLon;
 
   // ── Schritt 2: Open-Meteo Forecast abrufen ──────────────────────
-  WiFiClientSecure client;
-  client.setInsecure();
-  client.setTimeout(8000);
-
-  if (client.connect("api.open-meteo.com", 443)) {
+  {
     char path[320];
     snprintf(path, sizeof(path),
       "/v1/forecast?latitude=%.4f&longitude=%.4f"
@@ -296,88 +390,64 @@ static void weatherFetch() {
       cfg.weatherLat, cfg.weatherLon,
       strcmp(cfg.weatherTempUnit,"F")==0 ? "fahrenheit" : "celsius",
       strcmp(cfg.weatherSpeedUnit,"mph")==0 ? "mph" : "kmh");
-
-    client.printf(
-      "GET %s HTTP/1.1\r\n"
-      "Host: api.open-meteo.com\r\n"
-      "User-Agent: Tomessino-DGB/" FW_VERSION "\r\n"
-      "Connection: close\r\n\r\n", path);
-
-    uint32_t t = millis();
-    while (!client.available() && millis()-t < 8000)
-      vTaskDelay(50/portTICK_PERIOD_MS);
-
-    String body = ""; bool inBody = false;
-    while (client.available()) {
-      String ln = client.readStringUntil('\n');
-      if (!inBody && ln == "\r") { inBody = true; continue; }
-      if (inBody) body += ln;
-      if (body.length() > 6144) break;  // Overflow-Schutz
-    }
-    client.stop();
-
-    int js = body.indexOf('{'), je = body.lastIndexOf('}');
-    if (js >= 0 && je > js) {
-      JsonDocument doc;
-      DeserializationError err = deserializeJson(doc, body.substring(js, je+1));
-      if (!err) {
+    String body;
+    int st = httpsGet("api.open-meteo.com", path, body, 8192);
+    JsonDocument doc;
+    if (st != 200) {
+      logMsg("WEATHER", (String("Abruf fehlgeschlagen: ") + st).c_str());
+    } else if (deserializeJson(doc, body)) {
+      logMsg("WEATHER", "JSON-Parse fehlgeschlagen");
+    } else {
         if (stateMutex && xSemaphoreTake(stateMutex, pdMS_TO_TICKS(200)) == pdTRUE) {
-          JsonObject cur = doc["current"];
-          weather.tempC       = cur["temperature_2m"]          | 0.0f;
-          weather.feelsLikeC  = cur["apparent_temperature"]    | 0.0f;
-          weather.humidity    = cur["relative_humidity_2m"]    | 0;
-          weather.pressureHpa = cur["surface_pressure"]        | 0.0f;
-          weather.windKmh     = cur["wind_speed_10m"]          | 0.0f;
-          weather.weatherCode = cur["weather_code"]            | 0;
+        JsonObject cur = doc["current"];
+        weather.tempC       = cur["temperature_2m"]          | 0.0f;
+        weather.feelsLikeC  = cur["apparent_temperature"]    | 0.0f;
+        weather.humidity    = cur["relative_humidity_2m"]    | 0;
+        weather.pressureHpa = cur["surface_pressure"]        | 0.0f;
+        weather.windKmh     = cur["wind_speed_10m"]          | 0.0f;
+        weather.weatherCode = cur["weather_code"]            | 0;
 
-          JsonObject daily = doc["daily"];
-          JsonArray sunriseArr = daily["sunrise"];
-          JsonArray sunsetArr  = daily["sunset"];
-          if (sunriseArr.size() > 0) {
-            const char* sr = sunriseArr[0] | "";  // "2026-06-19T04:51"
-            const char* p = strchr(sr, 'T');
-            if (p) strlcpy(weather.sunrise, p+1, sizeof(weather.sunrise));
-          }
-          if (sunsetArr.size() > 0) {
-            const char* ss = sunsetArr[0] | "";
-            const char* p = strchr(ss, 'T');
-            if (p) strlcpy(weather.sunset, p+1, sizeof(weather.sunset));
-          }
+        JsonObject daily = doc["daily"];
+        JsonArray sunriseArr = daily["sunrise"];
+        JsonArray sunsetArr  = daily["sunset"];
+        if (sunriseArr.size() > 0) {
+          const char* sr = sunriseArr[0] | "";  // "2026-06-19T04:51"
+          const char* p = strchr(sr, 'T');
+          if (p) strlcpy(weather.sunrise, p+1, sizeof(weather.sunrise));
+        }
+        if (sunsetArr.size() > 0) {
+          const char* ss = sunsetArr[0] | "";
+          const char* p = strchr(ss, 'T');
+          if (p) strlcpy(weather.sunset, p+1, sizeof(weather.sunset));
+        }
 
-          JsonArray dCodes = daily["weather_code"];
-          JsonArray dMax   = daily["temperature_2m_max"];
-          JsonArray dMin   = daily["temperature_2m_min"];
-          JsonArray dDates = daily["time"];
+        JsonArray dCodes = daily["weather_code"];
+        JsonArray dMax   = daily["temperature_2m_max"];
+        JsonArray dMin   = daily["temperature_2m_min"];
+        JsonArray dDates = daily["time"];
 
-          // Tag 1-3 (Index 1,2,3 — Index 0 ist heute)
-          for (int i = 0; i < 3; i++) {
-            int srcIdx = i + 1;
-            if (srcIdx < (int)dCodes.size()) {
-              weather.forecast[i].weatherCode = dCodes[srcIdx] | 0;
-              weather.forecast[i].tempMax     = dMax[srcIdx]   | 0.0f;
-              weather.forecast[i].tempMin     = dMin[srcIdx]   | 0.0f;
-              const char* dstr = dDates[srcIdx] | "";  // "2026-06-20"
-              if (strlen(dstr) >= 10) {
-                snprintf(weather.forecast[i].date, sizeof(weather.forecast[i].date),
-                         "%c%c-%c%c", dstr[5],dstr[6],dstr[8],dstr[9]);
-              }
+        // Tag 1-3 (Index 1,2,3 — Index 0 ist heute)
+        for (int i = 0; i < 3; i++) {
+          int srcIdx = i + 1;
+          if (srcIdx < (int)dCodes.size()) {
+            weather.forecast[i].weatherCode = dCodes[srcIdx] | 0;
+            weather.forecast[i].tempMax     = dMax[srcIdx]   | 0.0f;
+            weather.forecast[i].tempMin     = dMin[srcIdx]   | 0.0f;
+            const char* dstr = dDates[srcIdx] | "";  // "2026-06-20"
+            if (strlen(dstr) >= 10) {
+              snprintf(weather.forecast[i].date, sizeof(weather.forecast[i].date),
+                       "%c%c-%c%c", dstr[5],dstr[6],dstr[8],dstr[9]);
             }
           }
-
-          weather.valid     = true;
-          weather.fetchedAt = millis();
-          xSemaphoreGive(stateMutex);
         }
-        logMsg("WEATHER", (String(weatherCodeDesc(weather.weatherCode))
-               + " " + String(weather.tempC,1) + "C").c_str());
-      } else {
-        logMsg("WEATHER", "JSON-Parse fehlgeschlagen");
+
+        weather.valid     = true;
+        weather.fetchedAt = millis();
+        xSemaphoreGive(stateMutex);
       }
-    } else {
-      logMsg("WEATHER", "Kein JSON in Response");
+      logMsg("WEATHER", (String(weatherCodeDesc(weather.weatherCode))
+             + " " + String(weather.tempC,1) + "C").c_str());
     }
-  } else {
-    logMsg("WEATHER", "HTTPS connect fehlgeschlagen");
   }
 
   // ── Schritt 3: Luftqualität (Open-Meteo Air Quality) ────────────
@@ -412,6 +482,10 @@ void weatherTaskFn(void* param) {
   logTaskMem("weather");
   weatherTaskRunning = false;
   vTaskDelete(NULL);
+}
+
+void weatherInit() {
+  if (!cfg.weatherAutoLoc) strlcpy(weather.cityName, cfg.weatherCity, sizeof(weather.cityName));
 }
 
 void fetchWeather() {

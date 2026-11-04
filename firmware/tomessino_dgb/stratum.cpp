@@ -32,6 +32,7 @@ bool stratumConnect(uint8_t poolNum) {
     logMsg("POOL","TCP fehlgeschlagen"); miner.poolConn=false; return false;
   }
   stratumSock.setTimeout(5000);
+  stratumSock.setNoDelay(true);   // Shares sofort senden, nicht auf Nagle warten
   miner.poolConn=true; miner.activePool=poolNum; tLastRx=millis();
   nextSubmitId=STRATUM_ID_SUBMIT_FIRST;
   stratumSock.print(String("{\"id\":")+STRATUM_ID_SUBSCRIBE+",\"method\":\"mining.subscribe\",\"params\":[\"" FW_FULL "\",null]}\n");
@@ -65,6 +66,7 @@ static void handleLine(const String& line) {
   char msg[150];
   switch (ev) {
     case EV_JOB:
+      miner.jobs++;
       snprintf(msg, sizeof(msg), "Job:%s br:%d cb:%d/%d net:%.0f", job.id, job.merkleBranchCount,
                (int)strlen(job.coinb1)/2, (int)strlen(job.coinb2)/2, job.netDiff);
       logMsg("MINE", msg);

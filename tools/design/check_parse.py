@@ -45,5 +45,19 @@ for d in range(3):
     line = got[8 + d].split()
     check(f"PM Tag {h['time'][f][:10]}: {line[2]}/{line[3]}", line[1] == "1" and int(line[2]) == e25 and int(line[3]) == e10)
 
+markets = {m["id"]: m["sparkline_in_7d"]["price"] for m in json.load(open(DATA / "markets.json"))}
+for i, cid in enumerate(IDS):
+    raw = [v for v in markets[cid] if v is not None][:200]
+    n = min(len(raw), 48)
+    exp = []
+    for k in range(n):
+        a, b = k * len(raw) // n, (k + 1) * len(raw) // n
+        b = max(b, a + 1)
+        exp.append(sum(raw[a:b]) / (b - a))
+    f = got[11 + i].split()
+    vals = [float(v) for v in f[2:]]
+    check(f"Chart {cid}: {f[1]} Punkte aus {len(raw)}",
+          f[0] == "spark" and int(f[1]) == n and all(math.isclose(v, e, rel_tol=1e-5) for v, e in zip(vals, exp)))
+
 print("PARSER OK" if not fails else "PARSER FEHLGESCHLAGEN")
 sys.exit(1 if fails else 0)

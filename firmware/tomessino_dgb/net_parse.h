@@ -6,6 +6,7 @@
 // auf dem PC gegen echte Antworten läuft (tools/design/testdata/).
 // ================================================================
 #include <stddef.h>
+#include <stdint.h>
 
 // DGB und BTC sind fest, dazu bis zu 5 frei wählbare Coins (Plan 4.1)
 #define WATCH_MAX     5
@@ -49,3 +50,38 @@ struct AirData {
 // Tageswerte sind der gerundete Mittelwert der vorhandenen Stunden.
 // Erwartet hourly ab heute 00:00 Ortszeit (timezone=auto).
 bool parseAirQuality(const char* json, AirData& out);
+
+// ================================================================
+// 7-TAGE-VERLAUF (CoinGecko /coins/markets?sparkline=true)
+// Die Antwort hat rund 30 KB. Der Parser liest sie Zeichen für Zeichen,
+// ohne sie zu puffern, und behält je Coin SPARK_N gemittelte Punkte.
+// ================================================================
+#define SPARK_N   48
+#define SPARK_RAW 200
+
+struct SparkSet {
+  float   pts[COIN_COUNT][SPARK_N];
+  uint8_t n[COIN_COUNT];   // 0: kein Verlauf
+};
+
+class SparkParser {
+ public:
+  SparkParser(const WatchEntry* w, int count, SparkSet& out);
+  void feed(const char* s, size_t len);
+  int  found() const { return found_; }
+ private:
+  uint16_t slotsOf(const char* id) const;   // Bitmaske: eine ID kann mehrfach in der Liste stehen
+  void endArray();
+  const WatchEntry* w_;
+  int count_;
+  SparkSet& out_;
+  char tail_[10];
+  int  mode_;             // 0 suchen, 1 ID lesen, 2 Zahlen lesen
+  char tok_[40];
+  int  tokLen_;
+  uint16_t cur_;
+  float raw_[SPARK_RAW];
+  int  rawN_;
+  int  found_;
+};
+

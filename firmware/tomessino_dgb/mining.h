@@ -11,6 +11,8 @@ struct MinerState {
   uint32_t hrCore1       = 0;     // Anteil Kern 1
   uint32_t hrCore0       = 0;     // Anteil Kern 0
   uint32_t hwErrors      = 0;     // Hardware meldete einen Treffer, den die Software nicht bestätigt
+  uint32_t hwChecks      = 0;     // Laufende Prüfung: geprüfte Runden
+  uint32_t hwCheckFails  = 0;     // Laufende Prüfung: letzter Nonce einer Runde falsch
   uint32_t sharesSent    = 0;     // Eingereicht (K3: nur ab Pool-Diff)
   uint32_t sharesOk      = 0;
   uint32_t sharesRej     = 0;
@@ -21,6 +23,7 @@ struct MinerState {
   double   bestDiffAllTime = 0;   // All-Time Best Diff (H1)
   double   lastShareDiff = 0;     // Diff des zuletzt gesendeten Shares
   uint32_t blockHits     = 0;     // Gefundene Blöcke
+  uint32_t jobs          = 0;     // Vom Pool erhaltene Jobs seit dem Start
   char     lastNonce[18] = "--";
   char     poolDisp[86]  = "";
   bool     ntpOk         = false;
@@ -36,6 +39,9 @@ void miningStart();                         // Selbsttests und Miner-Tasks
 void miningSetMode(int backend, bool core0);
 int  miningBackend();
 bool miningCore0();
+bool miningHwTimed();         // feste Wartezeiten statt Pollen aktiv
+uint32_t miningHwCycLoop();   // Takte je Hash x100 in der Hardware-Schleife
+uint32_t miningHwCycAll();    // Takte je Hash x100 von Runde zu Runde
 void miningLockJob();
 void miningUnlockJob();
 bool miningNextShare(struct ShareMsg& out);

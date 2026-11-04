@@ -39,22 +39,30 @@ static void savePpm(const char* path) {
 
 static void resetStats() { pushCount = pushPixels = 0; minX = minY = 9999; maxX = maxY = -1; }
 
+static int sparkFound = -1;
+static SparkSet sparkOut;
+static float demoSpark[6][SPARK_N];
+static int   demoSparkN[6];
+
 // Beispielwerte im Umfang der Vorlagen. Keine Messwerte vom Geraet.
 static void demoFull(UiData& d) {
   memset(&d, 0, sizeof(d));
-  strcpy(d.version, "7.4.5");
+  strcpy(d.version, "7.5.0");
   d.timeValid = true; strcpy(d.hhmm, "22:10"); d.wday = 6; d.day = 13; d.month = 6; d.year = 2026;
   d.uptime = 3888;
   d.wifi = true; d.rssi = -57; strcpy(d.ip, "192.168.1.50"); strcpy(d.pool, "dgb-stratum.solominer.net");
   d.hashrate = 12340; d.totalHash = 24680; d.workers = 2;
   d.poolDiff = 0.002; d.netDiff = 1206787.95; d.bestSession = 0.965; d.bestAll = 181.5;
   d.sharesOk = 975; d.sharesTotal = 977;
+  d.jobs = 1342; d.blockHits = 0; d.pulse[PULSE_SHARES] = 2; d.pulse[PULSE_JOBS] = 1;
   d.btcUsd = 64274; d.btcChg = 1.1;
   static const char* SYM[6] = {"DGB", "ADA", "DOGE", "XEC", "SHIB", "PEPE"};
   for (int i = 0; i < 6; i++) d.coins[i].sym = SYM[i];
   static const double USD[6] = {0.00321703, 0.193579, 0.075787, 0.00000643, 0.00000469, 0.00000499};
   static const double CHG[6] = {-0.45, 0.29, 0.93, -0.92, -1.19, -0.78};
   for (int i = 0; i < 6; i++) { d.coins[i].usd = USD[i]; d.coins[i].chg = CHG[i]; }
+  // Verlauf aus der echten Antwort in testdata/markets.json, falls schon geladen
+  for (int i = 0; i < 6; i++) { d.coins[i].spark = demoSpark[i]; d.coins[i].sparkN = demoSparkN[i]; }
   d.wxPmValid = true; d.wxPm25 = 6;
   d.wxValid = true; d.wxTemp = 12; d.wxFeels = 10; d.wxPressure = 1013; d.wxWind = 12; d.wxHumidity = 77; d.wxCode = 2;
   d.wxUnit = 'C'; strcpy(d.wxSpeed, "km/h"); strcpy(d.sunrise, "04:51"); strcpy(d.sunset, "21:43");
@@ -72,7 +80,7 @@ static void demoFull(UiData& d) {
 // So sieht es wirklich aus, bevor Daten da sind: alles leer oder Null.
 static void demoEmpty(UiData& d) {
   memset(&d, 0, sizeof(d));
-  strcpy(d.version, "7.4.5");
+  strcpy(d.version, "7.5.0");
   strcpy(d.hhmm, "--:--");
   strcpy(d.pool, "");
   static const char* SYM[6] = {"DGB", "ADA", "DOGE", "XEC", "SHIB", "PEPE"};
@@ -90,6 +98,7 @@ static void demoWide(UiData& d) {
   d.hashrate = 999000u; d.totalHash = 999000000u; d.workers = 13;
   d.poolDiff = 123456.7; d.netDiff = 999.9e12; d.bestSession = 999.9e9; d.bestAll = 999.9e12;
   d.sharesOk = 123456; d.sharesTotal = 123456;
+  d.jobs = 9999999; d.blockHits = 1234;
   d.btcUsd = 123456; d.btcChg = -12.34;
   d.coins[0].usd = 0.00000123; d.coins[0].chg = -100.0;
   d.wxTemp = -18; d.wxFeels = -24; d.wxPressure = 1045; d.wxWind = 120; d.wxHumidity = 100; d.wxPm25 = 999; d.wxPmValid = true;
@@ -144,7 +153,39 @@ static void parseTests(const char* dir) {
   check("Luft: Antwort auswertbar", parseAirQuality(readFile("tools/design/testdata/air.json"), a));
   fprintf(o, "now %d %d %d\n", a.nowOk, a.pm25Now, a.pm10Now);
   for (int i = 0; i < 3; i++) fprintf(o, "day %d %d %d\n", a.day[i].ok, a.day[i].pm25, a.day[i].pm10);
+  // Verlauf: Reihenfolge wie die Coins der Watchlist
+  check("Charts: alle 7 Verlaeufe gefunden", sparkFound == COIN_COUNT);
+  for (int i = 0; i < COIN_COUNT; i++) {
+    fprintf(o, "spark %d", sparkOut.n[i]);
+    for (int k = 0; k < sparkOut.n[i]; k++) fprintf(o, " %.9g", sparkOut.pts[i][k]);
+    fprintf(o, "\n");
+  }
   fclose(o);
+  // Gleiche Antwort in einem Stück: gleiches Ergebnis
+  {
+    WatchEntry w2[WATCH_MAX]; int n2 = parseWatchlist(WATCH_DEFAULT, w2, WATCH_MAX);
+    static SparkSet one;
+    SparkParser p1(w2, n2, one);
+    const char* js = readFile("tools/design/testdata/markets.json");
+    p1.feed(js, strlen(js));
+    check("Charts: Stueckelung aendert nichts", p1.found() == COIN_COUNT && !memcmp(&one, &sparkOut, sizeof(one)));
+    static SparkSet bad;
+    SparkParser p2(w2, n2, bad);
+    const char* err = "{\"status\":{\"error_code\":429,\"error_message\":\"x\"}}";
+    p2.feed(err, strlen(err));
+    check("Charts: 429-Antwort = 0 Verlaeufe", p2.found() == 0);
+    SparkParser p3(w2, n2, bad);
+    const char* nul = "[{\"id\":\"cardano\",\"sparkline_in_7d\":{\"price\":[1,null,3]}},{\"id\":\"unbekannt\",\"sparkline_in_7d\":{\"price\":[5,6]}}]";
+    p3.feed(nul, strlen(nul));
+    check("Charts: null uebersprungen, fremde ID ignoriert", p3.found() == 1 && bad.n[COIN_WATCH] == 2 && bad.pts[COIN_WATCH][1] == 3.0f);
+    // bitcoin fest und zusaetzlich in der Watchlist: die Antwort enthaelt es nur einmal
+    WatchEntry w3[WATCH_MAX]; int n3 = parseWatchlist("bitcoin:BTC,cardano:ADA", w3, WATCH_MAX);
+    static SparkSet dup;
+    SparkParser p4(w3, n3, dup);
+    const char* one2 = "[{\"id\":\"bitcoin\",\"sparkline_in_7d\":{\"price\":[1,2]}}]";
+    p4.feed(one2, strlen(one2));
+    check("Charts: doppelte ID fuellt beide Plaetze", p4.found() == 2 && dup.n[COIN_BTC] == 2 && dup.n[COIN_WATCH] == 2);
+  }
 
   // Fehlerfaelle
   check("Kurse: kaputtes JSON = -1", parsePrices("{\"digibyte\":", wl, wn, q) == -1);
@@ -164,8 +205,31 @@ static void parseTests(const char* dir) {
   check("Luft: null-Stunden und fehlende Tage", ok && !a.nowOk && !a.day[0].ok && a.day[1].ok && a.day[1].pm25 == 2 && !a.day[2].ok);
 }
 
+// 7-Tage-Verlauf aus der echten Antwort, in zufällig großen Stücken wie aus dem Netz
+static void loadSparks() {
+  WatchEntry wl[WATCH_MAX];
+  int wn = parseWatchlist(WATCH_DEFAULT, wl, WATCH_MAX);
+  const char* js = readFile("tools/design/testdata/markets.json");
+  size_t len = strlen(js), pos = 0;
+  SparkParser p(wl, wn, sparkOut);
+  srand(7);
+  while (pos < len) {
+    size_t n = 1 + (size_t)(rand() % 700);
+    if (pos + n > len) n = len - pos;
+    p.feed(js + pos, n);
+    pos += n;
+  }
+  sparkFound = p.found();
+  static const int idx[6] = {COIN_DGB, COIN_WATCH, COIN_WATCH + 1, COIN_WATCH + 2, COIN_WATCH + 3, COIN_WATCH + 4};
+  for (int i = 0; i < 6; i++) {
+    demoSparkN[i] = sparkOut.n[idx[i]];
+    memcpy(demoSpark[i], sparkOut.pts[idx[i]], sizeof(demoSpark[i]));
+  }
+}
+
 int main(int argc, char** argv) {
   const char* dir = argc > 1 ? argv[1] : ".";
+  loadSparks();
   static const char* NAMES[5] = {"miner", "clock", "markets", "weather", "rank"};
   uiSetPush(push);
   static UiData d;
@@ -186,7 +250,28 @@ int main(int argc, char** argv) {
       check(label, uiClipCount == 0);
     }
   }
+  for (int variant = 0; variant < 3; variant++) {
+    if (variant == 0) demoFull(d); else if (variant == 1) demoEmpty(d); else demoWide(d);
+    d.page = UI_MARKETS; d.marketChart = true;
+    uiClipCount = 0;
+    uiDraw(d);
+    snprintf(path, sizeof(path), "%s/chart_%s.ppm", dir, VAR[variant]);
+    savePpm(path);
+    char label[80];
+    snprintf(label, sizeof(label), "markets chart %s: kein Text abgeschnitten", VAR[variant]);
+    check(label, uiClipCount == 0);
+  }
   check("Alle Ausgaben innerhalb 320x240", outOfBounds == 0);
+
+  // Ansichtswechsel Kurse -> Charts: ganzer Bildschirm neu
+  demoFull(d); d.page = UI_MARKETS; uiDraw(d);
+  resetStats(); d.marketChart = true; uiDraw(d);
+  check("Kurse -> Charts: Hintergrund vollstaendig", minX == 0 && minY == 0 && maxX == 319 && maxY == 239);
+
+  // Leuchten: nur das Symbol wird neu ausgegeben
+  demoFull(d); d.page = UI_MINER; uiDraw(d);
+  resetStats(); d.pulse[PULSE_NET] = 2; uiDraw(d);
+  check("miner: Leuchten gibt nur das Symbol aus (20x20)", pushPixels == 400 && minX == 144 && minY == 59);
 
   // 2. Gleiche Daten: nichts darf neu gezeichnet werden
   for (int p = 0; p < 5; p++) {

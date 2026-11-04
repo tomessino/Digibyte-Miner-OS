@@ -56,7 +56,7 @@ def world_map():
 
 MOCK = {"hashrate": 583240, "hrCore1": 556000, "hrCore0": 27240, "minerMode": 2, "minerCore0": True, "hwErrors": 2, "sharesSent": 153, "sharesOk": 149,
         "sharesRej": 4, "uptime": 93784, "temp": 77.2, "freeHeap": 118608, "poolConn": True, "activePool": 1, "difficulty": 0.0016, "netDiff": 699064625.49,
-        "height": 24488166, "lastDiff": 0.003943, "bestDiff": 0.1013, "bestDiffAllTime": 181.45, "blockHits": 0, "lastNonce": "0x3a0a15cc",
+        "height": 24488166, "lastDiff": 0.003943, "bestDiff": 0.1013, "bestDiffAllTime": 181.45, "blockHits": 0, "jobs": 1503, "lastNonce": "0x3a0a15cc",
         "poolDisp": "dgb-stratum.solominer.net:3333", "ip": "192.168.1.50", "wallet": "DBeispielAdresseNurFuerDieVorschau00000", "pool1Host": "dgb-stratum.solominer.net",
         "pool1Port": 3333, "pool2Host": "eu.digi.hmpool.io", "pool2Port": 3337, "worker": "dgb_worker1", "cpuMhz": 240, "brightness": 200, "screenTimeout": 60, "timezone": 1,
         "rssi": -57, "ssid": "Beispiel-WLAN", "time": "22:10:48", "date": "01.11.2026", "ntpOk": True, "dgbUsd": 0.003217, "dgbChg": -0.45, "btcUsd": 77853, "btcChg": 0.75,
@@ -65,7 +65,8 @@ MOCK = {"hashrate": 583240, "hrCore1": 556000, "hrCore0": 27240, "minerMode": 2,
         "watchlist": "cardano:ADA,dogecoin:DOGE,ecash:XEC,shiba-inu:SHIB,pepe:PEPE", "webPassSet": False, "fwName": "Tomessino-DGB", "fwVersion": "7.4.5",
         "log": ["[00:00:04][POOL] Authorize OK", "[00:00:05][POOL] Diff: 0.001", "[00:00:05][MINE] Job:2d6c5e br:0 cb:68/90 net:688729551", "[00:00:42][MINE] Share: 0xe63e4c1b", "[00:00:43][POOL] Share OK",
                 "[00:02:37][POOL] Share REJ: 21 Job not found", "[00:03:00][DIAG] PoolDiff=0.0016 NetDiff=662238769 Best=0.1013 Shares/min=6 HR=583000H/s"],
-        "swarmPeers": [{"worker": "werkstatt-esp32", "ip": "192.168.1.51", "hr": 583000, "ok": 412, "rej": 9, "bestDiffAT": 512.3, "blocks": 0, "temp": 71.2}]}
+        "swarmPeers": [{"worker": "werkstatt-esp32", "ip": "192.168.1.51", "hr": 583000, "ok": 412, "rej": 9, "bestDiffAT": 512.3, "blocks": 0, "jobs": 2210, "temp": 71.2},
+                       {"worker": "<b>alt</b><img src=x>", "ip": "192.168.1.52", "hr": 12900, "ok": 8, "rej": 0, "bestDiffAT": 3.1, "blocks": 0, "jobs": -1, "temp": 64.0}]}
 
 
 def main():

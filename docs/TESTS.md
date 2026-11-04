@@ -41,7 +41,7 @@ python3 tools/device/geraetetest.py flash firmware
 ```
 
 ```bash
-python3 tools/device/geraetetest.py test lauf1 --version 7.4.5 --secs 180 --erwarte phase1,preise7,pm,mem --basis keine
+python3 tools/device/geraetetest.py test lauf1 --version 7.5.0 --secs 180 --erwarte phase1,preise7,pm,mem --basis keine
 ```
 
 - `flash` verweigert die Arbeit ohne Backup und mit veraltetem Build.
@@ -57,4 +57,5 @@ python3 tools/device/geraetetest.py test lauf1 --version 7.4.5 --secs 180 --erwa
 | Port taucht auf und verschwindet sofort | Unter Linux greift `brltty` CH340-Adapter ab. `sudo apt remove brltty`. |
 | `Permission denied` | Benutzer in die Gruppe `dialout`. |
 | Esptool: „Failed to connect“ | BOOT-Taste beim Start des Befehls halten. |
+| Log endet mitten im Lauf, Web-Werte laufen weiter | Der USB-Adapter hat sich kurz getrennt und unter einem neuen Port angemeldet, etwa `ttyUSB1`. `test` folgt dem neuen Port nicht. `journalctl -k` zeigt die Trennung. Kabel und Stecker prüfen. |
 | Kein WLAN nach dem Flashen | Portal `DGB-Miner-Setup` öffnen, `192.168.4.1`. |

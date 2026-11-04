@@ -119,9 +119,11 @@ static inline __attribute__((always_inline)) uint32_t oneNonce(const MiningMid& 
   return SHA_INIT[7] + h;   // Runde 60 schreibt das neue e in die Variable h, das nach Runde 63 h ist
 }
 
-uint32_t hashNonceH7(const MiningMid& m, uint32_t nonce) { return oneNonce(m, nonce); }
+MINING_IRAM uint32_t hashNonceH7(const MiningMid& m, uint32_t nonce) { return oneNonce(m, nonce); }   // Kern 1 prüft damit jede Runde
 
-MINING_IRAM uint32_t scanSoftware(const MiningMid& m, uint32_t nonce, uint32_t count, uint32_t* hits, uint32_t maxHits) {
+// Bewusst nicht im IRAM: Läuft der Software-Miner auf Kern 0 aus dem IRAM, bremst er die
+// Hardware-Schleife auf Kern 1 über den gemeinsamen Speicher um rund 10 % (gemessen am 03.11.2026).
+uint32_t scanSoftware(const MiningMid& m, uint32_t nonce, uint32_t count, uint32_t* hits, uint32_t maxHits) {
   uint32_t n = 0;
   for (uint32_t i=0; i<count; i++, nonce++) {
     if ((oneNonce(m, nonce) & H7_FILTER_MASK) == 0 && n < maxHits) hits[n++] = nonce;

@@ -181,9 +181,10 @@ def bg_miner():
     c.paste_rgba(emblem.robot(72, 63), 66, 31)
     c.text((102, 106), "DIGIBYTE", 12, WHITE, bold=True, italic=True, anchor="ms")
     c.text((102, 119), "MINER", 11, BRIGHT, bold=True, italic=True, anchor="ms")
-    # Symbole der vier Werte
-    for name, y in (("download", 34), ("globe", 59), ("chart", 84), ("share", 109)):
-        c.paste_rgba(emblem.icon(name, 20, 20), 144, y)
+    # Die Symbole der vier Werte zeichnet die Firmware (MASKS), sie leuchten bei neuen Werten grün.
+    # Block-Zähler als Plakette unten rechts am Logo
+    c.poly([(56 + 10.5 * math.cos(a / 12 * math.tau), 88 + 10.5 * math.sin(a / 12 * math.tau)) for a in range(12)],
+           fill=(5, 42, 140), outline=BRIGHT, width=1.0, glow=True)
     # Rechtes Feld
     c.poly([(170, 31), (308, 31), (316, 38), (316, 126), (312, 130), (232, 130), (226, 134), (178, 134), (170, 128)],
            outline=LINE, width=0.9, glow=True)
@@ -193,13 +194,20 @@ def bg_miner():
     c.path([(146, 144), (140, 152)], BRIGHT, 1.0)
     c.path([(150, 144), (144, 152)], BRIGHT, 1.0)
     c.poly([(158, 142), (222, 142), (228, 137), (310, 137), (316, 143), (316, 180), (141, 180)], outline=LINE, width=0.9, glow=True)
-    # Fuss
-    c.vgrad_poly([(0, 184), (320, 184), (320, 240), (0, 240)], (4, 30, 92), (6, 48, 136))
-    c.path([(0, 184), (320, 184)], LINE, 0.9)
-    c.text((6, 200), "Best Difficulty", 12, WHITE)
-    c.text((160, 200), "Workers", 12, WHITE, anchor="ms")
-    c.text((314, 200), "Total Hash Rate", 12, WHITE, anchor="rs")
+    # Fuss: drei Kacheln mit Symbol, Titel und Wert (Wert zeichnet die Firmware)
+    for x0, x1, ic, label in MINER_TILES:
+        pts = chamfer(x0, 187, x1, 236, 5, ("tl", "br"))
+        c.vgrad_poly(pts, (6, 44, 122), (4, 22, 64))
+        c.poly(pts, outline=LINE, width=0.9, glow=True)
+        c.path([(x0 + 4, 202), (x1 - 4, 202)], LINE_DIM, 0.7)
+        c.paste_rgba(emblem.icon(ic, 12, 12), x0 + 6, 189)
+        c.text((x0 + 22, 199), label, 10, (150, 192, 255), bold=True)
     return c.finish()
+
+
+MINER_TILES = ((4, 104, "trophy", "BEST DIFF"), (110, 210, "users", "WORKERS"), (216, 316, "bolt", "TOTAL HASH"))
+# Symbole der vier Zählerzeilen, Position in ui.cpp
+MASKS = (("JOBS", "download"), ("NET", "globe"), ("BEST", "chart"), ("SHARES", "share"))
 
 
 def bg_clock():
@@ -209,10 +217,14 @@ def bg_clock():
 
 
 def bg_markets():
-    c = Canvas((3, 24, 74), (3, 28, 84))
-    c.world_map((6, 44, 116), box=(0, 12, 320, 200), pitch=5, radius=1.4)
-    for i in range(6):
-        c.text((74, 26 + i * 31), "$", 18, WHITE)
+    # Farben wie Wetter und Miner, Rahmen wie das Vorhersage-Panel
+    c = Canvas((2, 10, 32), (3, 18, 54))
+    c.world_map((6, 38, 104), box=(0, 12, 320, 200), pitch=5, radius=1.4)
+    c.poly(chamfer(4, 5, 316, 199, 5), outline=LINE, width=0.9, glow=True)
+    for i in range(5):
+        y = 37 + i * 31
+        c.path([(4, y), (316, y)], LINE_DIM, 0.7)
+    footer_lines(c)
     return c.finish()
 
 
@@ -236,8 +248,8 @@ def bg_weather():
 
 
 def bg_rank():
-    c = Canvas((3, 16, 50), (3, 20, 62))
-    c.world_map((6, 40, 108), box=(0, 18, 320, 90), pitch=5, radius=1.1)
+    c = Canvas((2, 10, 32), (3, 18, 54))
+    c.world_map((6, 38, 104), box=(0, 18, 320, 90), pitch=5, radius=1.1)
     # Titel
     c.paste_rgba(emblem.icon("ladder", 17, 21), 49, 3)
     c.text((72, 21), "LAN RANK LADDER", 18, WHITE, bold=True)
@@ -523,6 +535,17 @@ def main():
             total += len(rgb) * 3
         src.append(f"const UiIcon ui_icons_{label.lower()}[{len(ICON_NAMES)}] = {{{','.join(rows)}}};\n")
         hdr.append(f"extern const UiIcon ui_icons_{label.lower()}[{len(ICON_NAMES)}];")
+    hdr.append("")
+    hdr.append("struct UiMask  { uint8_t w, h; const uint8_t* a; };")
+    hdr.append("enum UiMaskId { " + ", ".join(f"MASK_{k}" for k, _ in MASKS) + " };")
+    rows = []
+    for key, name in MASKS:
+        a = np.asarray(emblem.mask(name, 20, 20), dtype=np.uint8).flatten()
+        src.append(f"static const uint8_t mask_{key}[] = {{\n{carr(a)}\n}};")
+        rows.append(f"{{20,20,mask_{key}}}")
+        total += len(a)
+    src.append(f"const UiMask ui_masks[{len(MASKS)}] = {{{','.join(rows)}}};\n")
+    hdr.append(f"extern const UiMask ui_masks[{len(MASKS)}];")
     (SKETCH / "ui_assets_fonts.cpp").write_text("\n".join(src))
     (SKETCH / "ui_assets.h").write_text("\n".join(hdr) + "\n")
     print(f"Hintergruende: {len(pages)} x {W * H * 2} Byte, Schriften+Symbole: {total} Byte")

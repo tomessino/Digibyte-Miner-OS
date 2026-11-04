@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 
 int parseWatchlist(const char* s, WatchEntry* out, int maxN) {
   int n = 0;
@@ -106,3 +107,69 @@ bool parseAirQuality(const char* json, AirData& out) {
   }
   return any;
 }
+
+SparkParser::SparkParser(const WatchEntry* w, int count, SparkSet& out)
+  : w_(w), count_(count), out_(out), mode_(0), tokLen_(0), cur_(0), rawN_(0), found_(0) {
+  memset(tail_, 0, sizeof(tail_));
+  memset(&out_, 0, sizeof(out_));
+}
+
+uint16_t SparkParser::slotsOf(const char* id) const {
+  uint16_t m = 0;
+  if (!strcmp(id, "digibyte")) m |= 1u << COIN_DGB;
+  if (!strcmp(id, "bitcoin")) m |= 1u << COIN_BTC;
+  for (int i = 0; i < count_; i++) if (!strcmp(id, w_[i].id)) m |= 1u << (COIN_WATCH + i);
+  return m;
+}
+
+void SparkParser::endArray() {
+  if (rawN_ > 1) {
+    int n = rawN_ < SPARK_N ? rawN_ : SPARK_N;
+    for (int slot = 0; slot < COIN_COUNT; slot++) {
+      if (!(cur_ & (1u << slot)) || out_.n[slot]) continue;
+      for (int k = 0; k < n; k++) {
+        int a = k * rawN_ / n, b = (k + 1) * rawN_ / n;
+        if (b <= a) b = a + 1;
+        double sum = 0;
+        for (int i = a; i < b; i++) sum += raw_[i];
+        out_.pts[slot][k] = (float)(sum / (b - a));
+      }
+      out_.n[slot] = (uint8_t)n;
+      found_++;
+    }
+  }
+  cur_ = 0;
+  rawN_ = 0;
+  mode_ = 0;
+}
+
+void SparkParser::feed(const char* s, size_t len) {
+  static const char ID_KEY[] = "\"id\":\"";
+  static const char PRICE_KEY[] = "\"price\":[";
+  for (size_t i = 0; i < len; i++) {
+    char c = s[i];
+    if (mode_ == 1) {                       // ID bis zum Anführungszeichen
+      if (c == '"') { tok_[tokLen_] = 0; cur_ = slotsOf(tok_); mode_ = 0; tokLen_ = 0; }
+      else if (tokLen_ < (int)sizeof(tok_) - 1) tok_[tokLen_++] = c;
+      continue;
+    }
+    if (mode_ == 2) {                       // Zahlenliste bis ]
+      if (c == ',' || c == ']') {
+        tok_[tokLen_] = 0;
+        if (tokLen_ && tok_[0] != 'n' && rawN_ < SPARK_RAW) raw_[rawN_++] = (float)strtod(tok_, nullptr);
+        tokLen_ = 0;
+        if (c == ']') endArray();
+      } else if (c != ' ' && c != '\n' && c != '\r' && c != '\t' && tokLen_ < (int)sizeof(tok_) - 1) {
+        tok_[tokLen_++] = c;
+      }
+      continue;
+    }
+    if (c == ' ' || c == '\n' || c == '\r' || c == '\t') continue;
+    memmove(tail_, tail_ + 1, sizeof(tail_) - 2);
+    tail_[sizeof(tail_) - 2] = c;
+    tail_[sizeof(tail_) - 1] = 0;
+    if (!strcmp(tail_ + sizeof(tail_) - 1 - 6, ID_KEY)) { mode_ = 1; tokLen_ = 0; }
+    else if (!strcmp(tail_, PRICE_KEY)) { mode_ = 2; tokLen_ = 0; rawN_ = 0; }
+  }
+}
+

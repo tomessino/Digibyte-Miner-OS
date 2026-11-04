@@ -29,4 +29,4 @@ DigiByte und das DigiByte-Logo (`tools/design/assets/`, eingebaut in Display und
 
 ## Dienste
 
-Die Firmware ruft zur Laufzeit CoinGecko (Kurse), Open-Meteo (Wetter, Luftqualität) und ip-api.com (Standort aus der IP, abschaltbar) auf. Für deren Nutzung gelten deren Bedingungen.
+Die Firmware ruft zur Laufzeit CoinGecko (Kurse, 7-Tage-Verlauf), Open-Meteo (Wetter, Luftqualität, Ortssuche) und ip-api.com (Standort aus der IP, abschaltbar) auf. Für deren Nutzung gelten deren Bedingungen.

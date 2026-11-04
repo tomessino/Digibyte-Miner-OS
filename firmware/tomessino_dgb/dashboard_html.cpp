@@ -89,6 +89,8 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
 .irow input,.irow select{flex:1;min-width:0;padding:8px 10px;background:#020a1e;border:1px solid var(--line2);color:var(--text);font:12px var(--mono);outline:0}
 .irow input:focus,.irow select:focus{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
 .irow input.sym{flex:0 0 90px}
+.irow input[type=color]{padding:2px;height:34px;cursor:pointer}
+.irow input[type=range]{padding:0;border:0;background:none;accent-color:var(--blue)}
 .btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 .btn{padding:8px 16px;font:700 12px inherit;background:#0b2b66;border:1px solid var(--line2);color:var(--text);cursor:pointer}
 .btn:hover{background:#0f3f9c}.btn.prim{background:var(--line);border-color:var(--line);color:#fff}.btn.prim:hover{background:var(--blue)}.btn.dng{color:#ff8b82;border-color:#7f1d1d;background:transparent}
@@ -170,6 +172,7 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
         <div class="row"><span class="rl">Pool</span><span class="rv" id="d-pool">--</span></div>
         <div class="row"><span class="rl">User</span><span class="rv" id="d-user">--</span></div>
         <div class="row"><span class="rl">Block Height</span><span class="rv" id="d-bh">--</span></div>
+        <div class="row"><span class="rl">Jobs seit Start</span><span class="rv" id="d-jobs">--</span></div>
       </div>
       <div class="panel">
         <div class="panel-title"><span class="tico"><svg class="i" viewBox="0 0 24 24"><use href="#i-chip"/></svg></span>Device Status</div>
@@ -201,11 +204,12 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
             <th>Temp</th>
             <th>Best Diff</th>
             <th>Blocks</th>
+            <th>Jobs</th>
             <th>Shares</th>
           </tr>
         </thead>
         <tbody id="swarm-tbody">
-          <tr><td colspan="8" style="padding:20px;text-align:center">Warte auf Peer-Daten...</td></tr>
+          <tr><td colspan="9" style="padding:20px;text-align:center">Warte auf Peer-Daten...</td></tr>
         </tbody>
       </table></div>
       <p class="hint">Andere Tomessino-DGB-Geräte im selben Netzwerk werden automatisch erkannt (UDP Broadcast Port 55123, alle 5s).</p>
@@ -240,6 +244,13 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
       <div class="irow"><label>CPU Freq</label>
         <select id="c-cpu"><option value="80">80 MHz</option><option value="160">160 MHz</option><option value="240">240 MHz</option></select>
       </div>
+      <div class="sub">RGB-LED (Rückseite)</div>
+      <div class="note">Änderungen sind sofort zu sehen, gespeichert wird erst mit Save.</div>
+      <div class="irow"><label>Modus</label>
+        <select id="c-ledm" onchange="ledPreview()"><option value="0">Aus</option><option value="1">Feste Farbe</option><option value="2">Farbwechsel</option></select>
+      </div>
+      <div class="irow"><label>Farbe</label><input id="c-ledc" type="color" value="#0066cc" oninput="ledPreview()"/></div>
+      <div class="irow"><label>Helligkeit (<span id="c-ledb-v">30</span> %)</label><input id="c-ledb" type="range" min="0" max="100" value="30" oninput="ledPreview()"/></div>
       <div class="btn-row"><button class="btn prim" onclick="doSave()">Save</button></div>
     </div>
     <div class="sec"><h3><svg class="i" viewBox="0 0 24 24"><use href="#i-market"/></svg>Market Watchlist</h3>
@@ -249,6 +260,9 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
       <div class="irow"><label>Coin 3</label><input id="w-id2" placeholder="CoinGecko-ID"/><input id="w-sym2" maxlength="5" placeholder="Symbol" class="sym"/></div>
       <div class="irow"><label>Coin 4</label><input id="w-id3" placeholder="CoinGecko-ID"/><input id="w-sym3" maxlength="5" placeholder="Symbol" class="sym"/></div>
       <div class="irow"><label>Coin 5</label><input id="w-id4" placeholder="CoinGecko-ID"/><input id="w-sym4" maxlength="5" placeholder="Symbol" class="sym"/></div>
+      <div class="irow"><label>Kursseite am Display</label>
+        <select id="c-mktv"><option value="0">Kurse</option><option value="1">7-Tage-Charts</option><option value="2">Abwechselnd (10 s)</option></select>
+      </div>
       <div class="btn-row"><button class="btn prim" onclick="doSave()">Save</button></div>
     </div>
     <div class="sec"><h3><svg class="i" viewBox="0 0 24 24"><use href="#i-lock"/></svg>Dashboard-Passwort</h3>
@@ -263,7 +277,8 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
         <select id="c-wauto" onchange="toggleManualLoc()"><option value="1">Ja</option><option value="0">Nein</option></select>
       </div>
       <div id="manual-loc-fields">
-        <div class="irow"><label>Stadt-Name</label><input id="c-wcity" placeholder="Berlin, Germany"/></div>
+        <div class="note">Nur den Ort ändern genügt: Die Koordinaten werden dann geleert, der Miner sucht sie selbst. Wer Koordinaten einträgt, bestimmt den Standort direkt (Breite -90 bis 90, Länge -180 bis 180).</div>
+        <div class="irow"><label>Stadt-Name</label><input id="c-wcity" placeholder="Berlin, Germany" oninput="cityEdited()"/></div>
         <div class="irow"><label>Latitude</label><input id="c-wlat" type="number" step="0.0001"/></div>
         <div class="irow"><label>Longitude</label><input id="c-wlon" type="number" step="0.0001"/></div>
       </div>
@@ -320,6 +335,8 @@ function seg(id,v){
   el.innerHTML=[...v].map(sgChar).join('');
 }
 function fmtTemp(t){return t>0?t.toFixed(0)+' °C':'--';}
+// Texte von fremden Geräten (Swarm per UDP) nie als HTML einsetzen
+function escH(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtCard(d){return d>=1e6?(d/1e6).toFixed(2)+'M':d>=1000?(d/1000).toFixed(2)+'K':d>=1?d.toFixed(2):d.toFixed(4);}
 function rssiBars(r){const lv=r>=-55?4:r>=-65?3:r>=-75?2:r<0?1:0;let s='<span class="bars">';for(let i=1;i<=4;i++)s+='<i class="'+(i<=lv?'on':'')+'" style="height:'+(i*3)+'px"></i>';return s+'</span>';}
 seg('c-hr','--');seg('c-bdat','--');seg('c-blk','0');seg('c-shpct','--');
@@ -365,6 +382,7 @@ function applyState(d){
   set('d-pool',d.poolDisp||'--');
   set('d-user',(d.wallet||'--').substring(0,40)+'...');
   set('d-bh',d.height||'--');
+  set('d-jobs',d.jobs??'--');
   // Device Status
   set('ds-up',fmtUp(d.uptime||0));
   const hc1=fmtHr(d.hrCore1||0),hc0=fmtHr(d.hrCore0||0);
@@ -395,12 +413,17 @@ function applyState(d){
     document.getElementById('c-scto').value=d.screenTimeout??60;
     document.getElementById('c-tz').value=d.timezone??1;
     document.getElementById('c-wauto').value=d.weatherAutoLoc?'1':'0';
-    document.getElementById('c-wcity').value=d.weatherCity||'';
+    document.getElementById('c-wcity').value=d.weatherCfgCity??d.weatherCity??'';
     document.getElementById('c-wlat').value=d.weatherLat||52.52;
     document.getElementById('c-wlon').value=d.weatherLon||13.405;
     document.getElementById('c-wtu').value=d.weatherTempUnit||'C';
     document.getElementById('c-wsu').value=d.weatherSpeedUnit||'kmh';
     document.getElementById('c-wintv').value=d.weatherIntervalMin||15;
+    document.getElementById('c-ledm').value=String(d.ledMode??2);
+    document.getElementById('c-ledc').value=d.ledColor||'#0066cc';
+    document.getElementById('c-ledb').value=d.ledBright??30;
+    set('c-ledb-v',d.ledBright??30);
+    document.getElementById('c-mktv').value=String(d.marketView??2);
     const wl=(d.watchlist||'').split(',').filter(x=>x);
     for(let i=0;i<5;i++){
       const e=(wl[i]||':').split(':');
@@ -414,7 +437,7 @@ function applyState(d){
   }
   // Swarm-Tabelle: eigenes Gerät + alle aktiven Peers, sortiert nach Best Diff
   if(d.swarmPeers){
-    const all=[{worker:d.worker||'me',ip:d.ip,hr:d.hashrate,temp:d.temp,ok:d.sharesOk,rej:d.sharesRej,bestDiffAT:d.bestDiffAllTime,blocks:d.blockHits,isSelf:true}];
+    const all=[{worker:d.worker||'me',ip:d.ip,hr:d.hashrate,temp:d.temp,ok:d.sharesOk,rej:d.sharesRej,bestDiffAT:d.bestDiffAllTime,blocks:d.blockHits,jobs:d.jobs,isSelf:true}];
     d.swarmPeers.forEach(p=>all.push({...p,isSelf:false}));
     all.sort((a,b)=>(b.bestDiffAT||0)-(a.bestDiffAT||0));
     const tbody=document.getElementById('swarm-tbody');
@@ -424,12 +447,13 @@ function applyState(d){
         const bd=fmtD(p.bestDiffAT||0);
                 return '<tr'+(p.isSelf?' class="me"':'')+'>'
           +'<td>#'+(i+1)+'</td>'
-          +'<td>'+(p.worker||'?')+(p.isSelf?' (YOU)':'')+'</td>'
-          +'<td>'+(p.ip||'--')+'</td>'
+          +'<td>'+escH(p.worker||'?')+(p.isSelf?' (YOU)':'')+'</td>'
+          +'<td>'+escH(p.ip||'--')+'</td>'
           +'<td>'+hr.v+' '+hr.u+'</td>'
           +'<td>'+fmtTemp(p.temp)+'</td>'
           +'<td>'+bd+'</td>'
           +'<td>'+(p.blocks||0)+'</td>'
+          +'<td>'+(p.jobs>=0?p.jobs:'--')+'</td>'
           +'<td>'+(p.ok||0)+'/'+(p.rej||0)+'</td>'
           +'</tr>';
       }).join('');
@@ -456,6 +480,20 @@ function watchValue(){
   }
   return out.join(',');
 }
+function cityEdited(){
+  for(const id of ['c-wlat','c-wlon']){const e=document.getElementById(id);e.value='';e.placeholder='wird gesucht';}
+}
+function coordValues(){
+  const la=parseFloat(document.getElementById('c-wlat').value),lo=parseFloat(document.getElementById('c-wlon').value);
+  if(Number.isNaN(la)||Number.isNaN(lo))return {weatherGeo:true};   // Miner sucht den Ort
+  return {weatherLat:la,weatherLon:lo};
+}
+function ledValues(){
+  return {ledMode:parseInt(document.getElementById('c-ledm').value),
+    ledColor:document.getElementById('c-ledc').value,
+    ledBright:parseInt(document.getElementById('c-ledb').value)};
+}
+function ledPreview(){sd=true;set('c-ledb-v',document.getElementById('c-ledb').value);send({action:'ledPreview',...ledValues()});}
 function num(id,def,f){const v=f(document.getElementById(id).value);return Number.isNaN(v)?def:v;}
 function doWifi(){
   const id=document.getElementById('s-ssid').value;
@@ -485,11 +523,12 @@ function doSave(){
     timezone:num('c-tz',1,parseFloat),
     weatherAutoLoc:document.getElementById('c-wauto').value==='1',
     weatherCity:document.getElementById('c-wcity').value,
-    weatherLat:parseFloat(document.getElementById('c-wlat').value)||52.52,
-    weatherLon:parseFloat(document.getElementById('c-wlon').value)||13.405,
+    ...coordValues(),
     weatherTempUnit:document.getElementById('c-wtu').value,
     weatherSpeedUnit:document.getElementById('c-wsu').value,
-    weatherIntervalMin:parseInt(document.getElementById('c-wintv').value)||15
+    weatherIntervalMin:parseInt(document.getElementById('c-wintv').value)||15,
+    ...ledValues(),
+    marketView:parseInt(document.getElementById('c-mktv').value)
   });
   toast('Saved, restarting...');sd=false;
 }

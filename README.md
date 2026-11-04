@@ -4,23 +4,24 @@ DigiByte-SHA-256d-Solo-Miner für das ESP32-2432S028R („Cheap Yellow Display�
 
 ![Web-Dashboard](docs/img/dashboard.jpg)
 
-- **Rund 600 kH/s** über die SHA-Hardware des ESP32 und einen Software-Miner auf dem zweiten Kern
+- **Rund 960 kH/s** über die SHA-Hardware des ESP32 und einen Software-Miner auf dem zweiten Kern. Am Pool über 2 Stunden gemessen: 929 ± 42 kH/s.
 - **Stratum v1** mit Hauptpool und Ausweichpool, die Pool-Difficulty wird beim Start als Wunsch gesendet
-- **Fünf Display-Seiten:** Miner, Uhr, Kurse, Wetter, LAN-Rang
+- **Fünf Display-Seiten:** Miner, Uhr, Kurse mit 7-Tage-Charts, Wetter, LAN-Rang
+- **RGB-LED** auf der Rückseite: feste Farbe oder Farbwechsel
 - **Web-Dashboard** mit Echtzeit-Werten, WLAN, Pool, Watchlist und optionalem Passwort
 - **Selbsttest beim Start:** Genesis-Hash und Vergleich der SHA-Hardware mit der Software
 
-> **Das ist ein Lotterie-Miner.** Bei rund 600 kH/s und der aktuellen DigiByte-Difficulty dauert ein Block im Mittel über 100.000 Jahre. Akzeptierte Shares bringen im Solo-Pool keinen Ertrag. Das Projekt ist zum Basteln und Lernen gedacht.
+> **Das ist ein Lotterie-Miner.** Bei rund 960 kH/s und der aktuellen DigiByte-Difficulty dauert ein Block im Mittel über 100.000 Jahre. Akzeptierte Shares bringen im Solo-Pool keinen Ertrag. Das Projekt ist zum Basteln und Lernen gedacht.
 
 ## Schnellstart
 
 Fertige Firmware flashen (löscht **alle** Einstellungen auf dem Board):
 
 ```bash
-esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600 write-flash 0x0 Tomessino-DGB-Miner-v7.4.5-firmware.bin
+esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600 write-flash 0x0 Tomessino-DGB-Miner-v7.6.0-firmware.bin
 ```
 
-Die Datei gibt es unter den Releases des Repositorys, falls dort eine eingestellt ist. Der passende Quellcode ist dieses Repository beim Tag `v7.4.5`. Selbst bauen: [docs/INSTALLATION.md](docs/INSTALLATION.md).
+Die Datei gibt es unter den Releases des Repositorys, falls dort eine eingestellt ist. Der passende Quellcode ist dieses Repository beim Tag `v7.6.0`. Selbst bauen: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 Danach:
 1. Mit dem WLAN `DGB-Miner-Setup` verbinden und `192.168.4.1` öffnen.
@@ -44,12 +45,19 @@ Getestet auf einem einzelnen Board (ESP32-D0WD-V3, Revision 3.1) mit dem Pool `d
 | Dauerlauf 30 Minuten (7.2.0) | kein Absturz, keine Trennung, 149 von 153 Shares akzeptiert |
 | Lauf 12 Minuten (7.4.3) | kein Absturz, 66 von 66 Shares akzeptiert, ca. 600 kH/s |
 | Dashboard unter Dauerlast (7.4.4): 410 Abrufe, nebenbei alle paar Sekunden HTTPS-Abrufe | alle vollständig, kein Neustart |
+| Dauerlauf 6 Stunden (7.5.0) | kein Neustart, Pool laut Status durchgehend verbunden, 1225 von 1259 Shares akzeptiert, im Mittel 599 kH/s, freier Heap am Ende wie am Anfang (ca. 105 KB) |
+| Fester Wetter-Standort (7.5.0): Ortsname geändert, unbekannter Ort, Koordinaten 953/99,5 | Ort gefunden bzw. abgelehnt, kein Neustart |
+| Dauerlauf 9 Stunden (Testbau 7.6.0-t38, gleiche Mining-Schleife wie 7.6.0) | kein Neustart, 2248 von 2308 Shares akzeptiert, angezeigt rund 965 kH/s |
+| Pool-Messung 2 Stunden (Testbau 7.6.0-t38) | 478 von 486 Shares akzeptiert, am Pool 913 ± 42 kH/s, mit abgelehnten 929 ± 42 kH/s, angezeigt 968 kH/s |
+| WLAN-Start direkt nach einem Reset durch esptool (7.6.0) | viermal im ersten Versuch verbunden |
 
 **Noch nicht geprüft:**
-- Laufzeiten über 30 Minuten am Stück
+- Laufzeiten über 9 Stunden am Stück
 - Ausfälle von WLAN und Pool über längere Zeit, Wechsel auf den Ausweichpool
 - Ausweichpool `eu.digi.hmpool.io`
 - Dashboard-Passwort und Erfolgsfall beim WLAN-Wechsel
+- Neustart nach dem Speichern im WLAN-Portal (7.5.0)
+- Ob der zweite WLAN-Versuch beim Start einen Fehlschlag auffängt (7.6.0). Bisher klappte immer schon der erste.
 - Andere Boards und Displays. Die Farbeinstellung in `setup()` gilt für das getestete Panel.
 
 Details: [docs/TECHNIK.md](docs/TECHNIK.md), Tests: [docs/TESTS.md](docs/TESTS.md), Änderungen: [CHANGELOG.md](CHANGELOG.md).

@@ -66,6 +66,20 @@ void webAuthSetup() {
 // ================================================================
 // JSON STATUS (Web-Dashboard)
 // ================================================================
+// Text für einen JSON-String: Anführungszeichen, Backslash und Steuerzeichen
+// maskieren. Ein Ortsname mit " machte sonst das ganze Status-JSON ungültig.
+static const char* esc(const char* in, char* out, size_t n) {
+  size_t o = 0;
+  for (; *in && o + 7 < n; in++) {
+    unsigned char c = (unsigned char)*in;
+    if (c == '"' || c == '\\') { out[o++] = '\\'; out[o++] = c; }
+    else if (c < 0x20) o += snprintf(out + o, n - o, "\\u%04x", c);
+    else out[o++] = c;
+  }
+  out[o] = 0;
+  return out;
+}
+
 String buildJson() {
   // Thread-sicherer Snapshot von prices/weather — diese Felder werden
   // von priceTaskFn/weatherTaskFn auf Core 0 geschrieben, während
@@ -103,22 +117,23 @@ String buildJson() {
     if (!swarmPeers[i].active) continue;
     if (!firstPeer) peersArr += ",";
     firstPeer = false;
-    char peerBuf[220];
+    char peerBuf[360], ew[72], ei[40];
     snprintf(peerBuf, sizeof(peerBuf),
       "{\"worker\":\"%s\",\"ip\":\"%s\",\"hr\":%lu,\"ok\":%lu,\"rej\":%lu,"
-      "\"bestDiffAT\":%.4f,\"blocks\":%lu,\"up\":%lu,\"temp\":%.1f}",
-      swarmPeers[i].workerName, swarmPeers[i].ip, swarmPeers[i].hashrate,
+      "\"bestDiffAT\":%.4f,\"blocks\":%lu,\"jobs\":%ld,\"up\":%lu,\"temp\":%.1f}",
+      esc(swarmPeers[i].workerName, ew, sizeof(ew)), esc(swarmPeers[i].ip, ei, sizeof(ei)), swarmPeers[i].hashrate,
       swarmPeers[i].sharesOk, swarmPeers[i].sharesRej,
-      swarmPeers[i].bestDiffAllTime, swarmPeers[i].blockHits, swarmPeers[i].uptime, swarmPeers[i].tempC);
+      swarmPeers[i].bestDiffAllTime, swarmPeers[i].blockHits, (long)swarmPeers[i].jobs, swarmPeers[i].uptime, swarmPeers[i].tempC);
     peersArr += peerBuf;
   }
   peersArr += "]";
 
   // Ohne Log (E6: Das Log wird unten angehängt, kann den Puffer also nicht mehr sprengen)
-  char j[2048];
+  char eDisp[96], eWallet[140], eP1[80], eP2[80], eWorker[72], eSsid[72], eCity[100], eCfgCity[100], eWatch[240];
+  char j[2560];
   int jl=  snprintf(j,sizeof(j),
     "{"
-    "\"hashrate\":%lu,\"hrCore1\":%lu,\"hrCore0\":%lu,\"minerMode\":%d,\"minerCore0\":%s,\"hwErrors\":%lu,\"sharesSent\":%lu,\"sharesOk\":%lu,\"sharesRej\":%lu,"
+    "\"hashrate\":%lu,\"hrCore1\":%lu,\"hrCore0\":%lu,\"minerMode\":%d,\"minerCore0\":%s,\"hwErrors\":%lu,\"hwChecks\":%lu,\"hwCheckFails\":%lu,\"hwTimed\":%s,\"hwCycLoop\":%lu,\"hwCycAll\":%lu,\"sharesSent\":%lu,\"sharesOk\":%lu,\"sharesRej\":%lu,"
     "\"uptime\":%lu,\"temp\":%.1f,"
     "\"freeHeap\":%lu,\"maxAlloc\":%lu,\"poolConn\":%s,\"activePool\":%u,\"difficulty\":%.6f,\"netDiff\":%.2f,\"height\":%lu,\"lastDiff\":%.6f,"
     "\"bestDiff\":%.6f,\"bestDiffAllTime\":%.6f,\"blockHits\":%lu,"
@@ -135,31 +150,33 @@ String buildJson() {
     "\"weatherValid\":%s,\"weatherTemp\":%.1f,\"weatherFeels\":%.1f,"
     "\"weatherHumidity\":%d,\"weatherPressure\":%.0f,\"weatherWind\":%.1f,"
     "\"weatherCode\":%d,\"sunrise\":\"%s\",\"sunset\":\"%s\","
-    "\"weatherCity\":\"%s\",\"weatherLat\":%.4f,\"weatherLon\":%.4f,"
+    "\"weatherCity\":\"%s\",\"weatherCfgCity\":\"%s\",\"weatherLat\":%.4f,\"weatherLon\":%.4f,"
     "\"weatherAutoLoc\":%s,\"weatherTempUnit\":\"%s\",\"weatherSpeedUnit\":\"%s\","
     "\"weatherIntervalMin\":%u,"
     "\"watchlist\":\"%s\",\"webPassSet\":%s,"
+    "\"jobs\":%lu,\"ledMode\":%u,\"ledColor\":\"#%06lx\",\"ledBright\":%u,\"marketView\":%u,"
     "\"fwName\":\"%s\",\"fwVersion\":\"%s\"",
-    miner.hashrate,miner.hrCore1,miner.hrCore0,miningBackend(),miningCore0()?"true":"false",miner.hwErrors,miner.sharesSent,miner.sharesOk,miner.sharesRej,
+    miner.hashrate,miner.hrCore1,miner.hrCore0,miningBackend(),miningCore0()?"true":"false",miner.hwErrors,miner.hwChecks,miner.hwCheckFails,miningHwTimed()?"true":"false",(unsigned long)miningHwCycLoop(),(unsigned long)miningHwCycAll(),miner.sharesSent,miner.sharesOk,miner.sharesRej,
     miner.uptime,miner.tempC,
     (unsigned long)ESP.getFreeHeap(),(unsigned long)ESP.getMaxAllocHeap(),miner.poolConn?"true":"false",miner.activePool,miner.difficultyF,job.valid?job.netDiff:0.0,(unsigned long)job.height,miner.lastShareDiff,
     miner.bestDiff,miner.bestDiffAllTime,miner.blockHits,
-    miner.lastNonce,miner.poolDisp,
-    WiFi.localIP().toString().c_str(),cfg.wallet,
-    cfg.pool1Host,cfg.pool1Port,cfg.pool2Host,cfg.pool2Port,
-    cfg.worker,cfg.cpuMhz,
+    miner.lastNonce,esc(miner.poolDisp,eDisp,sizeof(eDisp)),
+    WiFi.localIP().toString().c_str(),esc(cfg.wallet,eWallet,sizeof(eWallet)),
+    esc(cfg.pool1Host,eP1,sizeof(eP1)),cfg.pool1Port,esc(cfg.pool2Host,eP2,sizeof(eP2)),cfg.pool2Port,
+    esc(cfg.worker,eWorker,sizeof(eWorker)),cfg.cpuMhz,
     cfg.brightness,cfg.screenTimeout,cfg.timezone,
-    WiFi.RSSI(),WiFi.SSID().c_str(),
+    WiFi.RSSI(),esc(WiFi.SSID().c_str(),eSsid,sizeof(eSsid)),
     timeStr().c_str(),dateStr().c_str(),miner.ntpOk?"true":"false",
     pSnap.dgbUsd,pSnap.dgbChg,
     pSnap.btcUsd,pSnap.btcChg,
     wSnap.valid?"true":"false",wSnap.tempC,wSnap.feelsLikeC,
     wSnap.humidity,wSnap.pressureHpa,wSnap.windKmh,
     wSnap.weatherCode,wSnap.sunrise,wSnap.sunset,
-    wSnap.cityName,cfg.weatherLat,cfg.weatherLon,
+    esc(wSnap.cityName,eCity,sizeof(eCity)),esc(cfg.weatherCity,eCfgCity,sizeof(eCfgCity)),cfg.weatherLat,cfg.weatherLon,
     cfg.weatherAutoLoc?"true":"false",cfg.weatherTempUnit,cfg.weatherSpeedUnit,
     cfg.weatherIntervalMin,
-    cfg.watchlist,cfg.webPass[0]?"true":"false",
+    esc(cfg.watchlist,eWatch,sizeof(eWatch)),cfg.webPass[0]?"true":"false",
+    (unsigned long)miner.jobs,cfg.ledMode,(unsigned long)cfg.ledColor,cfg.ledBright,cfg.marketView,
     FW_NAME,FW_VERSION
   );
   if (jl<0||jl>=(int)sizeof(j)) { Serial.printf("[JSON] Status-Kopf zu lang: %d\n",jl); j[0]=0; strlcpy(j,"{\"fwVersion\":\"" FW_VERSION "\"",sizeof(j)); }
@@ -202,9 +219,23 @@ void onWsEvent(AsyncWebSocket* s,AsyncWebSocketClient* c,
     if (!doc["timezone"].isNull())          cfg.timezone  =doc["timezone"].as<float>();
     if (!doc["weatherAutoLoc"].isNull())    cfg.weatherAutoLoc = doc["weatherAutoLoc"].as<bool>();
     if (!cfg.weatherAutoLoc) {
-      if (!doc["weatherLat"].isNull())      cfg.weatherLat = doc["weatherLat"].as<float>();
-      if (!doc["weatherLon"].isNull())      cfg.weatherLon = doc["weatherLon"].as<float>();
-      if (doc["weatherCity"].is<const char*>()) strlcpy(cfg.weatherCity, doc["weatherCity"]|cfg.weatherCity, sizeof(cfg.weatherCity));
+      float lat = doc["weatherLat"].isNull() ? cfg.weatherLat : doc["weatherLat"].as<float>();
+      float lon = doc["weatherLon"].isNull() ? cfg.weatherLon : doc["weatherLon"].as<float>();
+      bool coordsChanged = fabsf(lat - cfg.weatherLat) > 0.0005f || fabsf(lon - cfg.weatherLon) > 0.0005f;
+      if (coordsChanged) {
+        if (validLatLon(lat, lon)) { cfg.weatherLat = lat; cfg.weatherLon = lon; cfg.weatherGeo = false; }
+        else logMsg("CFG", "Koordinaten ungültig (Breite -90..90, Länge -180..180), nicht übernommen");
+      }
+      if (doc["weatherCity"].is<const char*>()) {
+        const char* city = doc["weatherCity"];
+        if (!strncmp(city, "Standort wird", 13)) city = cfg.weatherCity;   // Anzeigetext, kein Ort
+        // Dashboard schickt weatherGeo, wenn die Koordinatenfelder leer sind. Ältere Seiten:
+        // nur der Ort geändert, Koordinaten gleich. In beiden Fällen die Koordinaten suchen.
+        bool cityChanged = strlen(city) > 1 && strcmp(city, cfg.weatherCity) != 0;
+        if (doc["weatherGeo"].as<bool>() && strlen(city) > 1) cfg.weatherGeo = true;
+        else if (cityChanged && !coordsChanged) cfg.weatherGeo = true;
+        strlcpy(cfg.weatherCity, city, sizeof(cfg.weatherCity));
+      }
     }
     if (doc["weatherTempUnit"].is<const char*>())  strlcpy(cfg.weatherTempUnit,  doc["weatherTempUnit"]|cfg.weatherTempUnit,   sizeof(cfg.weatherTempUnit));
     if (doc["weatherSpeedUnit"].is<const char*>()) strlcpy(cfg.weatherSpeedUnit, doc["weatherSpeedUnit"]|cfg.weatherSpeedUnit, sizeof(cfg.weatherSpeedUnit));
@@ -218,6 +249,13 @@ void onWsEvent(AsyncWebSocket* s,AsyncWebSocketClient* c,
       if (strlen(wl) < sizeof(cfg.watchlist) && parseWatchlist(wl, probe, WATCH_MAX) >= 0) strlcpy(cfg.watchlist, wl, sizeof(cfg.watchlist));
       else logMsg("CFG", "Watchlist ungültig, nicht übernommen");
     }
+    if (!doc["ledMode"].isNull())    cfg.ledMode = min(2, doc["ledMode"].as<int>());
+    if (!doc["ledBright"].isNull())  cfg.ledBright = constrain(doc["ledBright"].as<int>(), 0, 100);
+    if (doc["ledColor"].is<const char*>()) {
+      const char* hc = doc["ledColor"];
+      if (hc[0] == '#') cfg.ledColor = strtoul(hc + 1, nullptr, 16) & 0xFFFFFF;
+    }
+    if (!doc["marketView"].isNull()) cfg.marketView = min(2, doc["marketView"].as<int>());
     if (doc["webPassClear"].as<bool>()) cfg.webPass[0] = 0;
     else if (doc["webPass"].is<const char*>() && strlen(doc["webPass"].as<const char*>()) > 0)
       strlcpy(cfg.webPass, doc["webPass"], sizeof(cfg.webPass));
@@ -237,6 +275,12 @@ void onWsEvent(AsyncWebSocket* s,AsyncWebSocketClient* c,
   }
   else if (strcmp(action,"restart")==0)   { c->text("{\"ok\":true}"); delay(300); ESP.restart(); }
   else if (strcmp(action,"wifiReset")==0) { WiFiManager wm; wm.resetSettings(); c->text("{\"ok\":true}"); delay(300); ESP.restart(); }
+  else if (strcmp(action,"ledPreview")==0) {
+    // Nur anzeigen, nicht speichern: Speichern läuft über "save"
+    if (!doc["ledMode"].isNull())   cfg.ledMode = min(2, doc["ledMode"].as<int>());
+    if (!doc["ledBright"].isNull()) cfg.ledBright = constrain(doc["ledBright"].as<int>(), 0, 100);
+    if (doc["ledColor"].is<const char*>()) { const char* hc = doc["ledColor"]; if (hc[0] == '#') cfg.ledColor = strtoul(hc + 1, nullptr, 16) & 0xFFFFFF; }
+  }
   else if (strcmp(action,"ping")==0)      { c->text(buildJson()); }
   else if (strcmp(action,"fetchPrice")==0){ fetchPrices(); c->text(buildJson()); }
   else if (strcmp(action,"fetchWeather")==0){ fetchWeather(); c->text(buildJson()); }

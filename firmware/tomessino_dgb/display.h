@@ -45,3 +45,6 @@ void tftSplash();
 void tftWifiSetup();
 void tftConnected();
 void tftUpdate();
+void displayWatch(uint32_t now);
+void ledInit();
+void ledTick(uint32_t now);         // RGB-LED nach cfg.ledMode    // jede Runde: neue Werte erkennen, Symbole leuchten lassen
