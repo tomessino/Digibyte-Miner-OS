@@ -2,8 +2,11 @@
 firmware/build/
 tools/design/out/
 tools/web/out/
-_pycache_/
+__pycache__/
 *.pyc
 
 # NIE veröffentlichen: Das Flash-Backup enthält das WLAN-Passwort, die Logs Wallet und WLAN-Namen
 geraetetest/
+
+# Standard-Ausgabe von arduino-cli ohne --output-dir
+firmware/tomessino_dgb/build/
