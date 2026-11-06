@@ -1,4 +1,4 @@
-# Tomessino DGB Miner
+# Digibyte Miner OS
 
 DigiByte-SHA-256d-Solo-Miner für das ESP32-2432S028R („Cheap Yellow Display“, 2,8 Zoll, 320×240, ST7789, XPT2046).
 
