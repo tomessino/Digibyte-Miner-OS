@@ -29,13 +29,21 @@ def png_uri(im):
     return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
 
 
-def logo():
+def round_logo(size):
     src = Image.open(ASSETS / "2_miner_80_225_354_499.png").convert("RGB").resize((304, 304), Image.LANCZOS)
     mask = Image.new("L", src.size, 0)
     ImageDraw.Draw(mask).ellipse((2, 2, 301, 301), fill=255)
     src.putalpha(mask)
-    im = src.resize((76, 76), Image.LANCZOS)
-    return png_uri(im.quantize(48, method=Image.FASTOCTREE))
+    return src.resize((size, size), Image.LANCZOS)
+
+
+def logo():
+    return png_uri(round_logo(76).quantize(48, method=Image.FASTOCTREE))
+
+
+def icon():
+    # Symbol im Browser-Tab: dasselbe Logo, klein
+    return png_uri(round_logo(32).quantize(32, method=Image.FASTOCTREE))
 
 
 def figure():
@@ -54,15 +62,15 @@ def world_map():
     return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
 
 
-MOCK = {"hashrate": 583240, "hrCore1": 556000, "hrCore0": 27240, "minerMode": 2, "minerCore0": True, "hwErrors": 2, "sharesSent": 153, "sharesOk": 149,
+MOCK = {"hashrate": 965000, "hrCore1": 943000, "hrCore0": 22000, "minerMode": 2, "minerCore0": True, "hwErrors": 905213, "hwChecks": 4467000, "hwCheckFails": 1502, "sharesSent": 153, "sharesOk": 149,
         "sharesRej": 4, "uptime": 93784, "temp": 77.2, "freeHeap": 118608, "poolConn": True, "activePool": 1, "difficulty": 0.0016, "netDiff": 699064625.49,
         "height": 24488166, "lastDiff": 0.003943, "bestDiff": 0.1013, "bestDiffAllTime": 181.45, "blockHits": 0, "jobs": 1503, "lastNonce": "0x3a0a15cc",
-        "poolDisp": "dgb-stratum.solominer.net:3333", "ip": "192.168.1.50", "wallet": "DBeispielAdresseNurFuerDieVorschau00000", "pool1Host": "dgb-stratum.solominer.net",
-        "pool1Port": 3333, "pool2Host": "eu.digi.hmpool.io", "pool2Port": 3337, "worker": "dgb_worker1", "cpuMhz": 240, "brightness": 200, "screenTimeout": 60, "timezone": 1,
+        "poolDisp": "dgb-stratum.solominer.net:3333", "ip": "192.168.1.50", "wallet": "DBeispielAdresseNurFuerDieVorschau00000.keller", "pool1Host": "dgb-stratum.solominer.net",
+        "pool1Port": 3333, "pool2Host": "eu.digi.hmpool.io", "pool2Port": 3337, "worker": "keller", "workerCfg": "", "cpuMhz": 240, "brightness": 200, "screenTimeout": 60, "timezone": 1,
         "rssi": -57, "ssid": "Beispiel-WLAN", "time": "22:10:48", "date": "01.11.2026", "ntpOk": True, "dgbUsd": 0.003217, "dgbChg": -0.45, "btcUsd": 77853, "btcChg": 0.75,
         "weatherValid": True, "weatherTemp": 9.3, "weatherFeels": 7, "weatherHumidity": 77, "weatherPressure": 1013, "weatherWind": 12, "weatherCode": 3, "sunrise": "07:12", "sunset": "16:48",
         "weatherCity": "Berlin, Germany", "weatherLat": 52.52, "weatherLon": 13.40, "weatherAutoLoc": True, "weatherTempUnit": "C", "weatherSpeedUnit": "kmh", "weatherIntervalMin": 15,
-        "watchlist": "cardano:ADA,dogecoin:DOGE,ecash:XEC,shiba-inu:SHIB,pepe:PEPE", "webPassSet": False, "fwName": "Tomessino-DGB", "fwVersion": "7.4.5",
+        "watchlist": "cardano:ADA,dogecoin:DOGE,ecash:XEC,shiba-inu:SHIB,pepe:PEPE", "webPassSet": False, "fwName": "Tomessino-DGB", "fwVersion": "7.7.0",
         "log": ["[00:00:04][POOL] Authorize OK", "[00:00:05][POOL] Diff: 0.001", "[00:00:05][MINE] Job:2d6c5e br:0 cb:68/90 net:688729551", "[00:00:42][MINE] Share: 0xe63e4c1b", "[00:00:43][POOL] Share OK",
                 "[00:02:37][POOL] Share REJ: 21 Job not found", "[00:03:00][DIAG] PoolDiff=0.0016 NetDiff=662238769 Best=0.1013 Shares/min=6 HR=583000H/s"],
         "swarmPeers": [{"worker": "werkstatt-esp32", "ip": "192.168.1.51", "hr": 583000, "ok": 412, "rej": 9, "bestDiffAT": 512.3, "blocks": 0, "jobs": 2210, "temp": 71.2},
@@ -71,12 +79,16 @@ MOCK = {"hashrate": 583240, "hrCore1": 556000, "hrCore0": 27240, "minerMode": 2,
 
 def main():
     html = (ROOT / "tools/web/dashboard.html").read_text()
-    html = html.replace("@@LOGO@@", logo()).replace("@@FIGURE@@", figure()).replace("@@MAP@@", world_map())
+    html = html.replace("@@LOGO@@", logo()).replace("@@ICON@@", icon()).replace("@@FIGURE@@", figure()).replace("@@MAP@@", world_map())
     assert ")TOMFW" not in html and "@@" not in html
     OUT_CPP.write_text('// ERZEUGT von tools/web/build_dashboard.py aus tools/web/dashboard.html, nicht von Hand aendern.\n'
                        '#include "web.h"\nconst char DASH_HTML[] PROGMEM = R"TOMFW(' + html + ')TOMFW";\n')
-    mock = ("<script>window.WebSocket=class{constructor(){this.readyState=1;setTimeout(()=>this.onopen&&this.onopen(),10)}"
-            "send(m){if(m.includes('save'))console.log('save',m);setTimeout(()=>this.onmessage&&this.onmessage({data:JSON.stringify(" + json.dumps(MOCK) + ")}),20)}};</script>")
+    # Die Resets spielt die Vorschau nach wie miningStatsTick() in der Firmware
+    mock = ("<script>const MOCK=" + json.dumps(MOCK) + ";window.WebSocket=class{constructor(){this.readyState=1;setTimeout(()=>this.onopen&&this.onopen(),10)}"
+            "send(m){if(m.includes('save'))console.log('save',m);"
+            "if(m.includes('resetStats'))Object.assign(MOCK,{jobs:0,sharesSent:0,sharesOk:0,sharesRej:0});"
+            "if(m.includes('resetBest'))Object.assign(MOCK,{bestDiff:0,bestDiffAllTime:0});"
+            "setTimeout(()=>this.onmessage&&this.onmessage({data:JSON.stringify(MOCK)}),20)}};</script>")
     OUT_PREVIEW.parent.mkdir(exist_ok=True)
     OUT_PREVIEW.write_text(html.replace("<script>", mock + "<script>", 1))
     print(f"Dashboard: {len(html.encode())} Byte")

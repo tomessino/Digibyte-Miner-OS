@@ -141,7 +141,7 @@ String buildJson() {
     "\"ip\":\"%s\",\"wallet\":\"%s\","
     "\"pool1Host\":\"%s\",\"pool1Port\":%u,"
     "\"pool2Host\":\"%s\",\"pool2Port\":%u,"
-    "\"worker\":\"%s\",\"cpuMhz\":%u,"
+    "\"worker\":\"%s\",\"workerCfg\":\"%s\",\"cpuMhz\":%u,"
     "\"brightness\":%u,\"screenTimeout\":%u,\"timezone\":%.1f,"
     "\"rssi\":%d,\"ssid\":\"%s\","
     "\"time\":\"%s\",\"date\":\"%s\",\"ntpOk\":%s,"
@@ -163,7 +163,7 @@ String buildJson() {
     miner.lastNonce,esc(miner.poolDisp,eDisp,sizeof(eDisp)),
     WiFi.localIP().toString().c_str(),esc(cfg.wallet,eWallet,sizeof(eWallet)),
     esc(cfg.pool1Host,eP1,sizeof(eP1)),cfg.pool1Port,esc(cfg.pool2Host,eP2,sizeof(eP2)),cfg.pool2Port,
-    esc(cfg.worker,eWorker,sizeof(eWorker)),cfg.cpuMhz,
+    effWorker,esc(cfg.worker,eWorker,sizeof(eWorker)),(unsigned)getCpuFrequencyMhz(),   // effWorker hat nur sichere Zeichen; Takt ist fest 240 MHz
     cfg.brightness,cfg.screenTimeout,cfg.timezone,
     WiFi.RSSI(),esc(WiFi.SSID().c_str(),eSsid,sizeof(eSsid)),
     timeStr().c_str(),dateStr().c_str(),miner.ntpOk?"true":"false",
@@ -206,14 +206,23 @@ void onWsEvent(AsyncWebSocket* s,AsyncWebSocketClient* c,
   const char* action=doc["action"]|"";
 
   if (strcmp(action,"save")==0){
-    if (doc["wallet"].is<const char*>())    strlcpy(cfg.wallet,   doc["wallet"]   |cfg.wallet,   sizeof(cfg.wallet));
+    if (doc["wallet"].is<const char*>()) {
+      // "Adresse.Name": Der Name geht als Worker an den Pool und ins LAN
+      const char* wa = doc["wallet"];
+      const char* dot = strchr(wa, '.');
+      if (dot && dot[1] && !validWorkerName(dot + 1)) logMsg("CFG", "Name hinter der Wallet ungültig, nicht übernommen");
+      else strlcpy(cfg.wallet, wa, sizeof(cfg.wallet));
+    }
     if (doc["pool1Host"].is<const char*>()) strlcpy(cfg.pool1Host,doc["pool1Host"]|cfg.pool1Host,sizeof(cfg.pool1Host));
     if (!doc["pool1Port"].isNull())         cfg.pool1Port=doc["pool1Port"]|cfg.pool1Port;
     if (doc["pool2Host"].is<const char*>()) strlcpy(cfg.pool2Host,doc["pool2Host"]|cfg.pool2Host,sizeof(cfg.pool2Host));
     if (!doc["pool2Port"].isNull())         cfg.pool2Port=doc["pool2Port"]|cfg.pool2Port;
-    if (doc["worker"].is<const char*>())    strlcpy(cfg.worker,   doc["worker"]   |cfg.worker,   sizeof(cfg.worker));
+    if (doc["worker"].is<const char*>()) {
+      const char* wk = doc["worker"];   // leer: Standardname
+      if (!wk[0] || validWorkerName(wk)) strlcpy(cfg.worker, wk, sizeof(cfg.worker));
+      else logMsg("CFG", "Worker-Name ungültig, nicht übernommen");
+    }
     if (doc["workerPw"].is<const char*>())  strlcpy(cfg.workerPw, doc["workerPw"] |cfg.workerPw, sizeof(cfg.workerPw));
-    if (!doc["cpuMhz"].isNull())            cfg.cpuMhz    =doc["cpuMhz"]   |cfg.cpuMhz;
     if (!doc["brightness"].isNull())        cfg.brightness=doc["brightness"]|cfg.brightness;
     if (!doc["screenTimeout"].isNull())     cfg.screenTimeout=doc["screenTimeout"]|cfg.screenTimeout;
     if (!doc["timezone"].isNull())          cfg.timezone  =doc["timezone"].as<float>();
@@ -275,6 +284,8 @@ void onWsEvent(AsyncWebSocket* s,AsyncWebSocketClient* c,
   }
   else if (strcmp(action,"restart")==0)   { c->text("{\"ok\":true}"); delay(300); ESP.restart(); }
   else if (strcmp(action,"wifiReset")==0) { WiFiManager wm; wm.resetSettings(); c->text("{\"ok\":true}"); delay(300); ESP.restart(); }
+  else if (strcmp(action,"resetStats")==0){ miningRequestReset(true, false); c->text("{\"ok\":true}"); }
+  else if (strcmp(action,"resetBest")==0) { miningRequestReset(false, true); c->text("{\"ok\":true}"); }
   else if (strcmp(action,"ledPreview")==0) {
     // Nur anzeigen, nicht speichern: Speichern läuft über "save"
     if (!doc["ledMode"].isNull())   cfg.ledMode = min(2, doc["ledMode"].as<int>());

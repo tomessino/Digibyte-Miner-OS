@@ -52,6 +52,19 @@ struct AirData {
 bool parseAirQuality(const char* json, AirData& out);
 
 // ================================================================
+// WORKER-NAME
+// Pools trennen Miner über "Wallet.Name". Steht so ein Name schon in der Wallet,
+// gilt er, sonst der Name aus den Einstellungen, leer: def.
+// ================================================================
+#define WORKER_MAX 32
+// 1 bis WORKER_MAX Zeichen aus A-Z, a-z, 0-9, _ und -
+bool validWorkerName(const char* s);
+// Andere Zeichen werden "_": Der Name geht als JSON-Text an die anderen Miner im LAN.
+void workerNameFor(const char* wallet, const char* worker, const char* def, char* out, size_t n);
+// Benutzer für den Pool. Eine Wallet mit Namen bleibt, wie sie eingegeben ist.
+void poolUserFor(const char* wallet, const char* name, char* out, size_t n);
+
+// ================================================================
 // 7-TAGE-VERLAUF (CoinGecko /coins/markets?sparkline=true)
 // Die Antwort hat rund 30 KB. Der Parser liest sie Zeichen für Zeichen,
 // ohne sie zu puffern, und behält je Coin SPARK_N gemittelte Punkte.

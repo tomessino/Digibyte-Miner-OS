@@ -1,9 +1,12 @@
 #include "config.h"
 #include <Preferences.h>
 #include "mining.h"
+#include "net_parse.h"
 
 Preferences     prefs;
 Config cfg;
+char effWorker[33];
+char effPoolUser[170];
 SemaphoreHandle_t stateMutex = nullptr;
 String logRing[LOG_CAP];
 int    logHead = 0;
@@ -37,7 +40,6 @@ void loadConfig() {
   cfg.pool2Port     = prefs.getUShort("p2p",  DEF_POOL2_PORT);
   prefs.getString("worker",  cfg.worker,   sizeof(cfg.worker));
   prefs.getString("workerPw",cfg.workerPw, sizeof(cfg.workerPw));
-  cfg.cpuMhz        = prefs.getUShort("cpu",  DEF_CPU_MHZ);
   cfg.brightness    = prefs.getUChar("bri",   DEF_BRIGHTNESS);
   cfg.screenTimeout = prefs.getUShort("scto", DEF_SCREEN_TO);
   cfg.timezone      = prefs.getFloat("tz",    1.0f);
@@ -72,7 +74,13 @@ void loadConfig() {
     miner.blockHits       = prefs.getUInt("blk2", 0);
   }
   prefs.end();
+  deriveWorker();
   logMsg("CFG","Konfiguration geladen");
+}
+
+void deriveWorker() {
+  workerNameFor(cfg.wallet, cfg.worker, DEF_WORKER, effWorker, sizeof(effWorker));
+  poolUserFor(cfg.wallet, effWorker, effPoolUser, sizeof(effPoolUser));
 }
 
 void saveConfig() {
@@ -84,7 +92,6 @@ void saveConfig() {
   prefs.putUShort("p2p",     cfg.pool2Port);
   prefs.putString("worker",  cfg.worker);
   prefs.putString("workerPw",cfg.workerPw);
-  prefs.putUShort("cpu",     cfg.cpuMhz);
   prefs.putUChar("bri",      cfg.brightness);
   prefs.putUShort("scto",    cfg.screenTimeout);
   prefs.putFloat("tz",       cfg.timezone);
@@ -105,6 +112,7 @@ void saveConfig() {
   prefs.putString("watch",cfg.watchlist);
   prefs.putString("webPw",cfg.webPass);
   prefs.end();
+  deriveWorker();
   logMsg("CFG","Konfiguration gespeichert");
 }
 

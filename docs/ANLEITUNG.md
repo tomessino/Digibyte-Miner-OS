@@ -23,7 +23,7 @@ Ein Solo-Miner ist eine Lotterie. Bei rund 960 kH/s und der aktuellen Net-Diff d
 
 | Seite | Inhalt |
 |---|---|
-| Miner | Uhrzeit, Laufzeit, WLAN-Stärke, BTC-Kurs, Jobs seit dem Start, Net-Diff, Best Diff (Session / gesamt), Shares (OK / gesamt), IP, Hashrate, Best Diff gesamt, Worker und Gesamt-Hashrate im LAN. Die Zahl in der Plakette am DigiByte-Logo zählt gefundene Blöcke. |
+| Miner | Uhrzeit, Laufzeit, WLAN-Stärke, BTC-Kurs, Jobs seit dem Start, Net-Diff, Best Diff (Session / gesamt), Shares (abgelehnt / angenommen, abgelehnte rot), IP, Hashrate, Best Diff gesamt, Zahl der Miner und Gesamt-Hashrate im LAN. Die Zahl in der Plakette am DigiByte-Logo zählt gefundene Blöcke. |
 | Uhr | BTC-Kurs mit 24-h-Änderung, Hashrate, Uhrzeit, Datum, Pool |
 | Kurse | DGB und bis zu 5 Coins der Watchlist. Als Kurse mit 24-h-Änderung, als 7-Tage-Charts oder im Wechsel alle 10 Sekunden. |
 | Wetter | Uhrzeit, aktuelles Wetter, Sonnenauf- und -untergang, Feinstaub, 3 Tage Vorschau |
@@ -40,10 +40,12 @@ Auf der Wetterseite steht rechts „PM2.5“ mit dem aktuellen Feinstaubwert in 
 Das Dashboard hat eine Seitenleiste, oben stehen Pool-Status, Uhrzeit und Version. Auf dem Handy liegt die Navigation oben.
 
 **Dashboard:** Hashrate, Shares, Pool-Diff, Net-Diff, Blockhöhe, Jobs seit dem Start, Speicher, Hashrate je Kern.
-**Swarm:** Andere Tomessino-Geräte im LAN (UDP-Port 55123), mit Hashrate, Temperatur, Best Diff, Blöcken, Jobs seit dem Start und Shares. Geräte mit Firmware vor 7.6.0 senden keine Jobs, dort steht „--“.
+**Swarm:** Andere Tomessino-Geräte im LAN (UDP-Port 55123). Sie müssen im selben Netz hängen, Broadcasts gehen nicht über Router. Angezeigt mit Hashrate, Temperatur, Best Diff, Blöcken, Jobs seit dem Start und Shares. Geräte mit Firmware vor 7.6.0 senden keine Jobs, dort steht „--“.
 **Logs:** Die letzten 25 Zeilen.
 **Settings:** Jedes Speichern startet den Miner neu.
 
+- **Worker-Name:** Trennt mehrere Miner im Pool, im Swarm und in der Rangliste. Zwei Wege: den Namen hinter die Wallet schreiben (`Adresse.name`, so wie es Pools erwarten) oder ins Feld „Worker-Name“. Steht ein Name hinter der Wallet, gilt dieser. Ist beides leer, heißt der Miner `dgb_worker1`. Erlaubt sind Buchstaben, Ziffern, `_` und `-`, höchstens 32 Zeichen.
+- **Zähler:** „Jobs und Shares zurücksetzen“ und „Best Diff zurücksetzen“ wirken sofort, ohne Neustart. Best Diff gilt dabei für die Sitzung und den gespeicherten Gesamtwert. Gefundene Blöcke bleiben.
 - **Pool:** Pool 1 ist geprüft. Pool 2 ist nur als Ausweichpool eingetragen und ungeprüft. Ein leeres Feld „Pool Password“ lässt das Passwort unverändert.
 - **WLAN:** SSID und Passwort eintragen, dann „WLAN speichern“. Der Miner testet das Netz bis zu 15 Sekunden lang. Klappt es, speichert er es und startet neu. Klappt es nicht, geht er zurück ins alte WLAN, im Log steht dann `Neues WLAN nicht erreichbar, altes bleibt`. Das Passwort wird über HTTP unverschlüsselt übertragen. Getestet ist bisher nur der Fehlerfall.
 - **Display dimmen nach:** Sekunden ohne Bedienung, bis das Display dunkler wird. 0 heißt nie. Gedimmt läuft die Anzeige weiter. Einen automatischen Seitenwechsel gibt es nicht.

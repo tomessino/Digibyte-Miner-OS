@@ -47,7 +47,7 @@ MANIFEST = BUILD / "manifest.json"
 ARDUINO_CLI = os.path.expanduser("~/.local/bin/arduino-cli")
 FQBN = "esp32:esp32:esp32:CPUFreq=240,FlashSize=4M,PartitionScheme=huge_app,UploadSpeed={speed}"
 SKETCHES = {"firmware": "tomessino_dgb"}
-VERSIONS = {"firmware": "7.6.0"}
+VERSIONS = {"firmware": "7.7.0"}
 ZIEL_NVS = (0x9000, 0x5000)  # NVS in der huge_app-Tabelle
 FLASH_SIZE = 0x400000
 USB_SERIAL = {"1a86:7523": "CH340", "1a86:55d4": "CH9102", "10c4:ea60": "CP210x", "0403:6001": "FTDI"}

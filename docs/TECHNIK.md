@@ -96,6 +96,21 @@ Drei Sicherungen:
 
 **Unbestätigte Treffer (HW-Fehler).** Ab t31 steigt der Zähler deutlich: in den ersten rund 40 Sekunden nach dem Start um rund 4000, danach um 1 bis 7 je Sekunde (15 Minuten t38: 6220). Der gelesene Wert von `H7` ist dabei genau `0x00000000` oder `0x02000000`, nicht der Hash. Ein Lesezugriff auf das SHA-Register ist also verfälscht, vermutlich wenn der andere Kern gleichzeitig auf Peripherie zugreift (in der Startphase viele TLS-Verbindungen). Bei rund 940 000 Lesezugriffen je Sekunde ist das etwa 1 bis 7 zu einer Million. Jeder solche Treffer wird in Software verworfen, Shares sind also nie falsch. Verloren geht höchstens ein Treffer in dieser Größenordnung. Abhilfe wäre ein `memw` vor dem Lesen, das kostet nach Schätzung rund 2 % Hashrate.
 
+Nachprüfung am 06.11.2026 (7.7.0), nur am Code und an vorhandenen Logs, ohne Gerät:
+- Der Zähler steigt nur in `handleHit()`, wenn die Software einen Treffer der Hardware nicht bestätigt. Der Selbsttest beim Start zählt nicht mit, er meldete `4096/4096`.
+- Der Vorfilter prüft nur die unteren 16 Bit von `H7` (`H7_FILTER_MASK`). `0x00000000` und `0x02000000` haben beide unten 16 Nullbits, kommen also durch. Ein verfälschter Lesewert mit anderen unteren Bits fällt nicht auf, er geht nur als normaler Fehlversuch durch.
+- Zweites Board, 7.6.0: nach 60 s 3813, nach 120 s 3910. Kurse und Charts liefen von 9 bis 16 s, Wetter und Luft von 25 bis 31 s, danach kein HTTPS mehr. In der zweiten Minute kamen also 97 dazu, ohne Abruf.
+- Der Zeitverlauf passt zur Vermutung oben, beweist sie aber nicht. Ab 7.7.0 schreibt die Firmware in den ersten 3 Minuten alle 5 s den Zuwachs ins serielle Log (`[HWERR] 15s +812, gesamt 2410, Pruef 3`). Neben den Zeilen `[PRICE]` und `[WEATHER]` zeigt das beim nächsten Start, ob die Fehler mit den Abrufen kommen.
+- Die Mining-Schleife ist in 7.7.0 unverändert, Befehl für Befehl an denselben IRAM-Adressen wie in 7.6.0.
+
+Gerätetest am 06.11.2026 (7.7.0, zweites Board, `geraetetest/logs/01_v770.log`):
+- `[HWERR]`: 5–10 s +387, 10–15 s +1937, 20–25 s +24, 25–30 s +1677. Kurse und Charts liefen von 9 bis 16 s, Wetter und Luft von 24 bis 30 s. Sonst 1 bis 16 je 5 s, nach 3 min gesamt 4232.
+- Die Schübe kommen also mit den HTTPS-Abrufen. Der Kursabruf wiederholt sich alle 5 min: nach 240 s 4292, nach 412 s 5677.
+- Hauptminer, 7.6.0, nach 43,7 h: 1 502 827 HW-Fehler, rund 34 000 je Stunde. Die Rundenprüfung (letzter Nonce in Software) schlug 2492-mal bei 7,4 Mio. Runden fehl, also bei 0,034 %.
+- Schätzung des Verlusts: Sind die verfälschten Lesewerte gleich verteilt, ist auch rund 0,034 % aller Hashes falsch gelesen, also rund 0,3 kH/s. Ganze Runden sind nicht betroffen, sonst läge die Fehlerquote der Rundenprüfung bei über 1 %.
+- Welcher Mechanismus genau, ist weiter unbewiesen.
+- Eine Abhilfe in der Schleife kostet mehr, als sie bringt: Ein `memw` oder eine Schutzlesung bei jedem Nonce kostet nach Schätzung 2 bis 3 % Hashrate, eine Pause während der Abrufe rund 1 bis 2 %. Deshalb zeigt das Dashboard ab 7.7.0 die Quote der Rundenprüfung (`hwCheckFails / hwChecks`) als „HW-Lesefehler“. Die Zahl der verworfenen Treffer steht nur noch im Status-JSON (`hwErrors`) und in der DIAG-Zeile. Am Board nach 111 s: 0,13 % (7 von 5212). In der Startphase liegt die Quote wegen der Abrufe höher.
+
 Pool-Messungen (Shares × Pool-Diff × 2^32 / Zeit, ± eine Standardabweichung):
 
 | Stand | Dauer | angezeigt | am Pool, nur angenommene | mit abgelehnten (veraltet) |

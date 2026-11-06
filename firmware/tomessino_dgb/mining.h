@@ -37,6 +37,7 @@ enum MinerBackend { BK_MBEDTLS=0, BK_SOFT=1, BK_HW=2 };
 float readTemp();
 void miningStart();                         // Selbsttests und Miner-Tasks
 void miningSetMode(int backend, bool core0);
+void miningRequestReset(bool counters, bool best);   // aus dem Dashboard, ausgeführt in miningStatsTick
 int  miningBackend();
 bool miningCore0();
 bool miningHwTimed();         // feste Wartezeiten statt Pollen aktiv

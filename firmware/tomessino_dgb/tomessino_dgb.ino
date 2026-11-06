@@ -37,6 +37,9 @@ static void appTask(void*);
 void setup() {
   Serial.begin(115200); delay(200);
   Serial.println("\n=== " FW_FULL " ===");
+  // Fest 240 MHz, nicht mehr einstellbar: Die Wartezeiten der Mining-Schleife gelten nur dafür,
+  // und der Selbsttest gleich danach wählt die Schleife für diesen Takt.
+  setCpuFrequencyMhz(240);
 
   // Mutex für Thread-Safety zwischen Hauptloop und FreeRTOS-Tasks
   // (priceTaskFn/weatherTaskFn) — MUSS vor jedem logMsg()-Aufruf stehen.
@@ -77,7 +80,6 @@ void setup() {
 
   tftSplash();
   analogWrite(PIN_BL, cfg.brightness);
-  setCpuFrequencyMhz(cfg.cpuMhz);
 
   // WiFi — autoConnect: verbindet mit gespeichertem WLAN,
   // strahlt bei Erststart / Fehler "DGB-Miner-Setup" aus
@@ -158,7 +160,7 @@ void setup() {
       miner.difficultyF, miner.difficultyF,
       miner.sharesOk, miner.sharesRej,
       miner.bestDiffAllTime, miner.bestDiffAllTime,
-      miner.uptime, cfg.worker, WiFi.localIP().toString().c_str());
+      miner.uptime, effWorker, WiFi.localIP().toString().c_str());
     r->send(200, "application/json", buf);
   });
   httpSrv.on("/api/system/info", [](AsyncWebServerRequest* r) { r->send(200, "application/json", buildJson()); }).addMiddleware(&webAuth);

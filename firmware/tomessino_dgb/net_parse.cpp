@@ -1,6 +1,7 @@
 #include "net_parse.h"
 #include <ArduinoJson.h>
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -33,6 +34,31 @@ int parseWatchlist(const char* s, WatchEntry* out, int maxN) {
     if (!*s) return -1;   // Komma am Ende
   }
   return n;
+}
+
+static bool workerChar(char c) {
+  return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+}
+
+bool validWorkerName(const char* s) {
+  size_t len = strlen(s);
+  if (len < 1 || len > WORKER_MAX) return false;
+  for (size_t i = 0; i < len; i++) if (!workerChar(s[i])) return false;
+  return true;
+}
+
+void workerNameFor(const char* wallet, const char* worker, const char* def, char* out, size_t n) {
+  const char* dot = strchr(wallet, '.');
+  const char* src = (dot && dot[1]) ? dot + 1 : (worker[0] ? worker : def);
+  size_t i = 0;
+  for (; src[i] && i < WORKER_MAX && i + 1 < n; i++) out[i] = workerChar(src[i]) ? src[i] : '_';
+  out[i] = 0;
+}
+
+void poolUserFor(const char* wallet, const char* name, char* out, size_t n) {
+  const char* dot = strchr(wallet, '.');
+  if (dot && dot[1]) snprintf(out, n, "%s", wallet);
+  else snprintf(out, n, "%.*s.%s", dot ? (int)(dot - wallet) : (int)strlen(wallet), wallet, name);
 }
 
 size_t buildPriceIds(char* out, size_t n, const WatchEntry* w, int count) {

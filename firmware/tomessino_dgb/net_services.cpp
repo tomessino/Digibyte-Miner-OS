@@ -219,7 +219,7 @@ void swarmBroadcast() {
     "{\"fw\":\"%s\",\"coin\":\"DGB\",\"worker\":\"%s\",\"hr\":%lu,\"ok\":%lu,\"rej\":%lu,"
     "\"diff\":%.6f,\"bestDiffAT\":%.4f,\"blocks\":%lu,\"jobs\":%lu,"
     "\"pool\":\"%s\",\"ip\":\"%s\",\"up\":%lu,\"temp\":%.1f}",
-    FW_FULL, cfg.worker, miner.hashrate, miner.sharesOk, miner.sharesRej,
+    FW_FULL, effWorker, miner.hashrate, miner.sharesOk, miner.sharesRej,
     miner.difficultyF, miner.bestDiffAllTime, miner.blockHits, (unsigned long)miner.jobs,
     miner.poolDisp,
     WiFi.localIP().toString().c_str(), miner.uptime, miner.tempC);

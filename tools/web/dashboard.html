@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tomessino DGB Miner</title>
+<title>Digibyte Miner OS</title>
+<link rel="icon" type="image/png" href="@@ICON@@">
 <style>
 :root{--bg:#020a1e;--bg2:#04122e;--panel:#061a3f;--panel2:#082353;--line:#1060f0;--line2:#0f3f9c;--blue:#1e82ff;--blue2:#5eb0ff;--text:#ecf3ff;--mute:#8aa7d6;--ok:#28d246;--bad:#ff5a4d;--warn:#ffc53d;--mono:ui-monospace,'SF Mono','Cascadia Mono','DejaVu Sans Mono',Consolas,monospace}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -107,7 +108,7 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol><symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0zM7 6H3v2a4 4 0 0 0 4 4M17 6h4v2a4 4 0 0 1-4 4M12 14v4M8 21h8M9 18h6v3H9z"/></symbol><symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 12l3 3 5-6"/></symbol><symbol id="i-pick" viewBox="0 0 24 24"><path d="M14 6 3 21M8 3c6-1 11 3 13 9-4-4-9-7-13-9z"/></symbol><symbol id="i-chip" viewBox="0 0 24 24"><path d="M7 7h10v10H7zM10 2v3M14 2v3M10 19v3M14 19v3M2 10h3M2 14h3M19 10h3M19 14h3"/></symbol><symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M6 9v12h12V9"/></symbol><symbol id="i-swarm" viewBox="0 0 24 24"><path d="M12 2l4 2.3v4.6L12 11 8 8.9V4.3zM6 12l4 2.3v4.6L6 21l-4-2.1v-4.6zM18 12l4 2.3v4.6L18 21l-4-2.1v-4.6z"/></symbol><symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></symbol><symbol id="i-list" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h8M8 17h5"/></symbol><symbol id="i-restart" viewBox="0 0 24 24"><path d="M20 11A8 8 0 1 0 18 17M20 4v7h-7"/></symbol><symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol><symbol id="i-market" viewBox="0 0 24 24"><path d="M3 21h18M6 17V11M11 17V7M16 17v-4M20 17V5"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><path d="M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4"/></symbol><symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z"/></symbol></defs></svg>
 <header class="head">
   <img class="logo" src="@@LOGO@@" alt="">
-  <div class="brand">DIGIBYTE<b>MINER</b></div>
+  <div class="brand">Digibyte<b>Miner OS</b></div>
   <div class="status">
     <span class="h-opt" id="h-fw">--</span>
     <span class="h-opt" id="h-time">--:--:--</span>
@@ -177,7 +178,7 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
         <div class="row"><span class="rl">Uptime</span><span class="rv" id="ds-up">--</span></div>
         <div class="row"><span class="rl">Temperatur (Chip, ungefähr)</span><span class="rv" id="ds-temp">--</span></div>
         <div class="row"><span class="rl">Hashrate Kern 1 / Kern 0</span><span class="rv" id="ds-core">--</span></div>
-        <div class="row"><span class="rl">Hardware-Fehler</span><span class="rv" id="ds-hwerr">--</span></div>
+        <div class="row"><span class="rl">HW-Lesefehler</span><span class="rv" id="ds-hwerr">--</span></div>
         <div class="row"><span class="rl">Free Heap</span><span class="rv" id="ds-heap">--</span></div>
         <div class="row"><span class="rl">WiFi RSSI</span><span class="rv" id="ds-rssi">--</span></div>
         <div class="row"><span class="rl">WiFi IP</span><span class="rv" id="ds-ip">--</span></div>
@@ -230,18 +231,24 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
       <div class="irow"><label>Pool URL</label><input id="c-p1h" placeholder="dgb-stratum.solominer.net"/></div>
       <div class="irow"><label>Port</label><input id="c-p1p" type="number"/></div>
       <div class="irow"><label>Wallet Address</label><input id="c-wallet" placeholder="D..."/></div>
+      <div class="irow"><label>Worker-Name</label><input id="c-worker" maxlength="32" placeholder="dgb_worker1"/></div>
+      <div class="note">Der Name trennt deine Miner im Pool und im Swarm. Steht er schon hinter der Wallet (D....name), gilt dieser und das Feld wird ignoriert. Erlaubt: Buchstaben, Ziffern, _ und -, höchstens 32 Zeichen.</div>
       <div class="irow"><label>Pool Password</label><input id="c-pass" placeholder="leer = unverändert"/></div>
       <div class="sub">Fallback Pool</div>
       <div class="irow"><label>Pool URL</label><input id="c-p2h" placeholder="eu.digi.hmpool.io"/></div>
       <div class="irow"><label>Port</label><input id="c-p2p" type="number"/></div>
       <div class="btn-row"><button class="btn prim" onclick="doSave()">Save</button></div>
     </div>
+    <div class="sec"><h3><svg class="i" viewBox="0 0 24 24"><use href="#i-restart"/></svg>Zähler</h3>
+      <div class="note">Setzt sofort zurück, ohne Neustart. Gefundene Blöcke bleiben.</div>
+      <div class="btn-row">
+        <button class="btn dng" onclick="if(confirm('Jobs und Shares auf 0 setzen?')){send({action:'resetStats'});toast('Jobs und Shares zurückgesetzt')}">Jobs und Shares zurücksetzen</button>
+        <button class="btn dng" onclick="if(confirm('Best Diff auf 0 setzen? Das gilt für die Sitzung und den gespeicherten Gesamtwert.')){send({action:'resetBest'});toast('Best Diff zurückgesetzt')}">Best Diff zurücksetzen</button>
+      </div>
+    </div>
     <div class="sec"><h3><svg class="i" viewBox="0 0 24 24"><use href="#i-gear"/></svg>Preference</h3>
       <div class="irow"><label>Brightness (1-255)</label><input id="c-bright" type="number" min="20" max="255"/></div>
       <div class="irow"><label>Display dimmen nach (s, 0 = nie)</label><input id="c-scto" type="number" min="0"/></div>
-      <div class="irow"><label>CPU Freq</label>
-        <select id="c-cpu"><option value="80">80 MHz</option><option value="160">160 MHz</option><option value="240">240 MHz</option></select>
-      </div>
       <div class="sub">RGB-LED (Rückseite)</div>
       <div class="note">Änderungen sind sofort zu sehen, gespeichert wird erst mit Save.</div>
       <div class="irow"><label>Modus</label>
@@ -385,7 +392,9 @@ function applyState(d){
   set('ds-up',fmtUp(d.uptime||0));
   const hc1=fmtHr(d.hrCore1||0),hc0=fmtHr(d.hrCore0||0);
   set('ds-core',hc1.v+' '+hc1.u+' / '+hc0.v+' '+hc0.u);
-  set('ds-hwerr',d.hwErrors||0);
+  // Quote der Rundenprüfung statt der Zahl verworfener Treffer, die bei jedem HTTPS-Abruf um Tausende wächst (docs/TECHNIK.md)
+  const hwp=d.hwChecks>0?(d.hwCheckFails||0)/d.hwChecks*100:-1;
+  set('ds-hwerr',hwp<0?'--':hwp.toFixed(hwp<0.1?3:2)+'%');
   set('ds-temp',fmtTemp(d.temp));
   set('ds-heap',d.freeHeap?Math.round(d.freeHeap/1024)+' KB':'--');
   document.getElementById('ds-rssi').innerHTML=rssiBars(d.rssi||0)+(d.rssi||'--')+' dBm';
@@ -402,11 +411,11 @@ function applyState(d){
   // Settings (einmalig)
   if(!sd&&d.pool1Host){
     document.getElementById('c-wallet').value=d.wallet||'';
+    document.getElementById('c-worker').value=d.workerCfg??'';
     document.getElementById('c-p1h').value=d.pool1Host||'';
     document.getElementById('c-p1p').value=d.pool1Port||3333;
     document.getElementById('c-p2h').value=d.pool2Host||'';
     document.getElementById('c-p2p').value=d.pool2Port||3337;
-    document.getElementById('c-cpu').value=String(d.cpuMhz||240);
     document.getElementById('c-bright').value=d.brightness||200;
     document.getElementById('c-scto').value=d.screenTimeout??60;
     document.getElementById('c-tz').value=d.timezone??1;
@@ -503,19 +512,25 @@ function doWifi(){
   document.getElementById('s-wpw').value='';
   toast('WLAN wird getestet, Ergebnis steht im Log',6000);
 }
+// Wie validWorkerName() in der Firmware
+const okName=s=>/^[A-Za-z0-9_-]{1,32}$/.test(s);
 function doSave(){
+  const wa=document.getElementById('c-wallet').value,wk=document.getElementById('c-worker').value;
+  const dot=wa.indexOf('.');
+  if(dot>=0&&dot<wa.length-1&&!okName(wa.slice(dot+1))){toast('Name hinter der Wallet: nur Buchstaben, Ziffern, _ und -, höchstens 32',6000);return;}
+  if(wk&&!okName(wk)){toast('Worker-Name: nur Buchstaben, Ziffern, _ und -, höchstens 32',6000);return;}
   const extra={watchlist:watchValue(),webPassClear:document.getElementById('c-webclr').value==='1'};
   const pw=document.getElementById('c-webpw').value;
   if(pw)extra.webPass=pw;
   const pp=document.getElementById('c-pass').value;
   if(pp)extra.workerPw=pp;   // Leer heißt unverändert, das Feld wird nicht vorbelegt
   send({...extra,action:'save',
-    wallet:document.getElementById('c-wallet').value,
+    wallet:wa,
+    worker:wk,
     pool1Host:document.getElementById('c-p1h').value,
     pool1Port:parseInt(document.getElementById('c-p1p').value)||3333,
     pool2Host:document.getElementById('c-p2h').value,
     pool2Port:parseInt(document.getElementById('c-p2p').value)||3337,
-    cpuMhz:parseInt(document.getElementById('c-cpu').value)||240,
     brightness:parseInt(document.getElementById('c-bright').value)||200,
     screenTimeout:num('c-scto',60,parseInt),
     timezone:num('c-tz',1,parseFloat),

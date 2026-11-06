@@ -36,7 +36,7 @@ bool stratumConnect(uint8_t poolNum) {
   miner.poolConn=true; miner.activePool=poolNum; tLastRx=millis();
   nextSubmitId=STRATUM_ID_SUBMIT_FIRST;
   stratumSock.print(String("{\"id\":")+STRATUM_ID_SUBSCRIBE+",\"method\":\"mining.subscribe\",\"params\":[\"" FW_FULL "\",null]}\n");
-  stratumSock.print(String("{\"id\":")+STRATUM_ID_AUTHORIZE+",\"method\":\"mining.authorize\",\"params\":[\""+cfg.wallet+"."+cfg.worker+"\",\""+cfg.workerPw+"\"]}\n");
+  stratumSock.print(String("{\"id\":")+STRATUM_ID_AUTHORIZE+",\"method\":\"mining.authorize\",\"params\":[\""+effPoolUser+"\",\""+cfg.workerPw+"\"]}\n");
   // Nur ein Wunsch: Ohne ihn senkt der Pool die Diff erst nach ca. 13 Minuten.
   stratumSock.print(String("{\"id\":")+STRATUM_ID_SUGGEST+",\"method\":\"mining.suggest_difficulty\",\"params\":[0.001]}\n");
   logMsg("POOL","Subscribe+Authorize gesendet");
@@ -44,10 +44,8 @@ bool stratumConnect(uint8_t poolNum) {
 }
 
 static void sendShare(const ShareMsg& share) {
-  char user[170];
-  snprintf(user, sizeof(user), "%s.%s", cfg.wallet, cfg.worker);
   char line[420];
-  size_t n = stratumFormatSubmit(line, sizeof(line), nextSubmitId, user, share);
+  size_t n = stratumFormatSubmit(line, sizeof(line), nextSubmitId, effPoolUser, share);
   if (!n) { logMsg("MINE","Submit zu lang"); return; }
   nextSubmitId++;
   stratumSock.write((const uint8_t*)line, n);

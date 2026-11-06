@@ -7,7 +7,7 @@
 // FIRMWARE IDENTITÄT
 // ================================================================
 #define FW_NAME      "Tomessino-DGB"
-#define FW_VERSION   "7.6.0"
+#define FW_VERSION   "7.7.0"
 #define FW_FULL      FW_NAME " v" FW_VERSION
 #define COIN_NAME    "DigiByte"
 #define COIN_TICK    "DGB"
@@ -51,7 +51,6 @@
 #define DEF_WORKER      "dgb_worker1"
 #define DEF_WORKER_PW   "x"
 #define DEF_WALLET      ""
-#define DEF_CPU_MHZ     240
 #define DEF_BRIGHTNESS  200
 #define DEF_SCREEN_TO   60    // Sekunden bis Dimmen
 
@@ -73,7 +72,6 @@ struct Config {
   uint16_t pool2Port      = DEF_POOL2_PORT;
   char     worker[34]     = DEF_WORKER;
   char     workerPw[34]   = DEF_WORKER_PW;
-  uint16_t cpuMhz         = DEF_CPU_MHZ;
   uint8_t  brightness     = DEF_BRIGHTNESS;
   uint16_t screenTimeout  = DEF_SCREEN_TO;
   float    timezone       = 1.0f;   // UTC+1 Default (DE)
@@ -100,6 +98,11 @@ inline bool validLatLon(float lat, float lon) {
   return lat >= -90.0f && lat <= 90.0f && lon >= -180.0f && lon <= 180.0f && !(lat == 0.0f && lon == 0.0f);
 }
 extern Config cfg;
+
+// Aus Wallet und Worker abgeleitet (loadConfig, saveConfig): Name im LAN und Benutzer beim Pool
+extern char effWorker[33];
+extern char effPoolUser[170];
+void deriveWorker();
 
 // ================================================================
 // MUTEX — schützt logMsg()/prices/weather vor gleichzeitigem Zugriff

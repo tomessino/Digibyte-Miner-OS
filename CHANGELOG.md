@@ -1,5 +1,18 @@
 # Änderungen
 
+## 7.7.0
+- Miner-Seite: Die Gesamt-Hashrate im LAN zeigt ab 1 MH/s Nachkommastellen. Vorher wurde abgeschnitten: Zwei Miner mit zusammen 1,93 MH/s standen als „1 MH/s“ da. Wo die Rundung eine Stelle mehr ergäbe, wechselt das Format vorher („10.0“ statt „10.00“, „100“ statt „100.0“).
+- Miner-Seite: Der BTC-Kurs oben rechts ist so groß wie die Uhrzeit.
+- Miner-Seite: Die Shares stehen als „abgelehnt / angenommen“, die abgelehnten rot, sobald es welche gibt. Vorher „angenommen / gesamt“.
+- Miner-Seite ohne Weltkarte im Hintergrund. Die anderen Seiten behalten sie.
+- Titel „Digibyte Miner OS“ unter dem Roboter auf der Miner-Seite und oben im Dashboard, wie im Browser-Tab. Vorher „DIGIBYTE MINER“.
+- Worker-Name: Steht hinter der Wallet ein Name (`Adresse.name`), gilt er für Pool, Swarm und Rangliste. Sonst gilt das neue Feld „Worker-Name“ in den Einstellungen, leer heißt `dgb_worker1`. Vorher sendete der Miner bei `Adresse.name` den Benutzer `Adresse.name.dgb_worker1`, und im LAN hießen alle Geräte `dgb_worker1`.
+- Dashboard, Settings: Knöpfe „Jobs und Shares zurücksetzen“ und „Best Diff zurücksetzen“ (Sitzung und gespeicherter Gesamtwert), ohne Neustart.
+- CPU-Takt fest 240 MHz, das Feld „CPU Freq“ in den Settings ist weg. Mit 80 oder 160 MHz lief die Mining-Schleife mit Wartezeiten, die nur für 240 MHz gemessen sind, denn der Takt wurde erst nach Selbsttest und Mining-Start umgestellt. Ein früher gespeicherter Wert wird ignoriert. Das Status-JSON meldet in `cpuMhz` den tatsächlichen Takt.
+- Dashboard: Titel „Digibyte Miner OS“ und das DigiByte-Logo als Symbol im Browser-Tab.
+- Dashboard, Device Status: „HW-Lesefehler“ zeigt den Anteil der Runden, deren letzter Nonce falsch gelesen wurde, in Prozent. Vorher stand dort „Hardware-Fehler“ mit der Zahl verworfener Treffer, und die wächst mit jedem Kurs- und Wetterabruf um Tausende. Shares waren davon nie betroffen.
+- Serielles Log: In den ersten 3 Minuten alle 5 Sekunden der Zuwachs der HW-Fehler (`[HWERR]`), zur Klärung ihrer Ursache.
+
 ## 7.6.0
 - Hashrate rund 960 kH/s statt rund 600. Am Pool über 2 Stunden gemessen: 929 ± 42 kH/s mit abgelehnten Shares. Die Hardware-Schleife wartet feste Taktzahlen, statt das Busy-Register abzufragen, liegt im IRAM und zählt das Nonce-Wort direkt in Hardware-Byte-Reihenfolge. Der Software-Miner auf Kern 0 läuft dafür aus dem Flash, aus dem IRAM bremste er Kern 1. Details in `docs/TECHNIK.md`.
 - Sicherungen für die schnelle Schleife: Selbsttest mit 4096 Nonces beim Start, Prüfung des letzten Nonce jeder Runde, Rückfall auf die langsamere Schleife bei gehäuften Fehlern. Das Startlog meldet `HWTEST OK 4096/4096 fest`.

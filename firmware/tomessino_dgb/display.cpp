@@ -202,7 +202,7 @@ static void timeOfEvent(uint32_t tEvent, char* out, size_t n) {
 static void fillRank(UiData& d) {
   int n = 0;
   uint32_t lastSeen = 0, total = miner.hashrate;
-  strlcpy(d.rank[n].name, strlen(cfg.worker) ? cfg.worker : "self", sizeof(d.rank[n].name));
+  strlcpy(d.rank[n].name, effWorker, sizeof(d.rank[n].name));
   d.rank[n].best = miner.bestDiffAllTime;
   d.rank[n].self = true;
   n++;
@@ -352,7 +352,7 @@ void tftUpdate() {
   d.bestSession = miner.bestDiff;
   d.bestAll     = miner.bestDiffAllTime;
   d.sharesOk    = miner.sharesOk;
-  d.sharesTotal = miner.sharesOk + miner.sharesRej;
+  d.sharesRej   = miner.sharesRej;
 
   d.btcUsd = px.btcUsd; d.btcChg = px.btcChg;
   d.coins[0].sym = "DGB"; d.coins[0].usd = px.dgbUsd; d.coins[0].chg = px.dgbChg;

@@ -250,8 +250,12 @@ static void fmtDiff(double v, char* out, size_t n, int dec) {
   else                    snprintf(out, n, "%.1f", v);
 }
 
+// Ab 1 MH/s mit Nachkommastellen: Zwei Miner mit je 960 kH/s sind "1.92", nicht "1".
+// Die Schwellen liegen dort, wo die Rundung eine Stelle mehr ergäbe: 9 999 999 wäre sonst "10.00".
 static void fmtHash(uint32_t h, char* val, size_t n, const char** unit) {
-  if (h >= 1000000u)   { snprintf(val, n, "%u", (unsigned)(h / 1000000u)); *unit = "MH/s"; }
+  if (h >= 99950000u)      { snprintf(val, n, "%.0f", h / 1e6); *unit = "MH/s"; }
+  else if (h >= 9995000u)  { snprintf(val, n, "%.1f", h / 1e6); *unit = "MH/s"; }
+  else if (h >= 1000000u)  { snprintf(val, n, "%.2f", h / 1e6); *unit = "MH/s"; }
   else if (h >= 1000u) { snprintf(val, n, "%u", (unsigned)(h / 1000u));    *unit = "kH/s"; }
   else                 { snprintf(val, n, "%u", (unsigned)h);              *unit = "H/s";  }
 }
@@ -310,8 +314,9 @@ static void pageMiner(const UiData& d) {
 
   if (d.wifi) snprintf(b, sizeof(b), "%d", d.rssi); else snprintf(b, sizeof(b), "--");
   fld(195, 7, 28, 16, F_SEG12, U_WHITE, R, b);
+  // BTC-Kurs so groß wie die Uhrzeit, damit er lesbar ist
   if (d.btcUsd > 0) snprintf(b, sizeof(b), "$%.0f", d.btcUsd); else snprintf(b, sizeof(b), "$--");
-  fld(226, 7, 90, 16, F_SEG12, U_GREEN, R, b);
+  fld(224, 5, 92, 20, F_SEG18, U_GREEN, R, b);
 
   snprintf(b, sizeof(b), "%s", d.version);
   fld(4, 104, 64, 16, F_S13, U_WHITE, C, b);
@@ -335,8 +340,9 @@ static void pageMiner(const UiData& d) {
   fmtDiff(d.bestAll, c, sizeof(c), 1);
   snprintf(b, sizeof(b), "%s / %s", a, c);
   fld(176, 83, 136, 23, F_S18, U_WHITE, L, b);
-  snprintf(b, sizeof(b), "%u / %u", (unsigned)d.sharesOk, (unsigned)d.sharesTotal);
-  fld(176, 107, 136, 21, F_S18, U_WHITE, L, b);
+  // Shares: abgelehnt / angenommen, abgelehnte rot, sobald es welche gibt
+  snprintf(b, sizeof(b), CC_ALT "%u" CC_MAIN " / %u", (unsigned)d.sharesRej, (unsigned)d.sharesOk);
+  fld(176, 107, 136, 21, F_S18, U_WHITE, L, b, d.sharesRej ? U_RED : U_WHITE);
 
   fld(10, 151, 124, 22, F_S15, U_WHITE, C, d.wifi ? d.ip : "---.---.---.---");
 

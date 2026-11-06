@@ -47,13 +47,13 @@ static int   demoSparkN[6];
 // Beispielwerte im Umfang der Vorlagen. Keine Messwerte vom Geraet.
 static void demoFull(UiData& d) {
   memset(&d, 0, sizeof(d));
-  strcpy(d.version, "7.5.0");
+  strcpy(d.version, "7.7.0");
   d.timeValid = true; strcpy(d.hhmm, "22:10"); d.wday = 6; d.day = 13; d.month = 6; d.year = 2026;
   d.uptime = 3888;
   d.wifi = true; d.rssi = -57; strcpy(d.ip, "192.168.1.50"); strcpy(d.pool, "dgb-stratum.solominer.net");
-  d.hashrate = 12340; d.totalHash = 24680; d.workers = 2;
+  d.hashrate = 964000; d.totalHash = 1928000; d.workers = 2;
   d.poolDiff = 0.002; d.netDiff = 1206787.95; d.bestSession = 0.965; d.bestAll = 181.5;
-  d.sharesOk = 975; d.sharesTotal = 977;
+  d.sharesOk = 975; d.sharesRej = 2;
   d.jobs = 1342; d.blockHits = 0; d.pulse[PULSE_SHARES] = 2; d.pulse[PULSE_JOBS] = 1;
   d.btcUsd = 64274; d.btcChg = 1.1;
   static const char* SYM[6] = {"DGB", "ADA", "DOGE", "XEC", "SHIB", "PEPE"};
@@ -80,7 +80,7 @@ static void demoFull(UiData& d) {
 // So sieht es wirklich aus, bevor Daten da sind: alles leer oder Null.
 static void demoEmpty(UiData& d) {
   memset(&d, 0, sizeof(d));
-  strcpy(d.version, "7.5.0");
+  strcpy(d.version, "7.7.0");
   strcpy(d.hhmm, "--:--");
   strcpy(d.pool, "");
   static const char* SYM[6] = {"DGB", "ADA", "DOGE", "XEC", "SHIB", "PEPE"};
@@ -97,7 +97,7 @@ static void demoWide(UiData& d) {
   strcpy(d.ip, "192.168.100.255");
   d.hashrate = 999000u; d.totalHash = 999000000u; d.workers = 13;
   d.poolDiff = 123456.7; d.netDiff = 999.9e12; d.bestSession = 999.9e9; d.bestAll = 999.9e12;
-  d.sharesOk = 123456; d.sharesTotal = 123456;
+  d.sharesOk = 123456; d.sharesRej = 123456;
   d.jobs = 9999999; d.blockHits = 1234;
   d.btcUsd = 123456; d.btcChg = -12.34;
   d.coins[0].usd = 0.00000123; d.coins[0].chg = -100.0;
@@ -185,6 +185,28 @@ static void parseTests(const char* dir) {
     const char* one2 = "[{\"id\":\"bitcoin\",\"sparkline_in_7d\":{\"price\":[1,2]}}]";
     p4.feed(one2, strlen(one2));
     check("Charts: doppelte ID fuellt beide Plaetze", p4.found() == 2 && dup.n[COIN_BTC] == 2 && dup.n[COIN_WATCH] == 2);
+  }
+
+  // Worker-Name aus der Wallet oder den Einstellungen
+  {
+    char nm[40], user[180];
+    workerNameFor("DAdresse.keller", "dgb_worker1", "dgb_worker1", nm, sizeof(nm));
+    poolUserFor("DAdresse.keller", nm, user, sizeof(user));
+    check("Worker: Name hinter der Wallet gilt", !strcmp(nm, "keller") && !strcmp(user, "DAdresse.keller"));
+    workerNameFor("DAdresse", "buero", "dgb_worker1", nm, sizeof(nm));
+    poolUserFor("DAdresse", nm, user, sizeof(user));
+    check("Worker: ohne Punkt der Name aus den Einstellungen", !strcmp(nm, "buero") && !strcmp(user, "DAdresse.buero"));
+    workerNameFor("DAdresse", "", "dgb_worker1", nm, sizeof(nm));
+    check("Worker: leeres Feld = Standardname", !strcmp(nm, "dgb_worker1"));
+    workerNameFor("DAdresse.", "buero", "dgb_worker1", nm, sizeof(nm));
+    poolUserFor("DAdresse.", nm, user, sizeof(user));
+    check("Worker: Punkt ohne Namen zaehlt nicht", !strcmp(nm, "buero") && !strcmp(user, "DAdresse.buero"));
+    workerNameFor("DAdresse.a\"b<c>", "x", "y", nm, sizeof(nm));
+    check("Worker: Sonderzeichen werden _", !strcmp(nm, "a_b_c_"));
+    workerNameFor("D.0123456789012345678901234567890123456789", "x", "y", nm, sizeof(nm));
+    check("Worker: hoechstens 32 Zeichen", strlen(nm) == WORKER_MAX);
+    check("Worker: gueltige Namen", validWorkerName("Miner-2_a") && !validWorkerName("") && !validWorkerName("a b")
+          && !validWorkerName("a.b") && !validWorkerName("012345678901234567890123456789012"));
   }
 
   // Fehlerfaelle

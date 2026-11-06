@@ -57,6 +57,7 @@ static volatile bool     core0Mode = true;
 static bool              hwUsable = false;
 static volatile bool     hwTimed = false;   // feste Wartezeiten statt Pollen
 static volatile bool     bestDirty = false;
+static volatile bool     resetCounters = false, resetBest = false;
 static volatile uint32_t workerHashes[2] = {0, 0};
 
 void miningLockJob()   { if (jobMutex) xSemaphoreTake(jobMutex, portMAX_DELAY); }
@@ -67,6 +68,10 @@ void miningSetMode(int backend, bool core0) {
   if (backend == BK_HW && !hwUsable) backend = BK_SOFT;
   backendMode = backend;
   core0Mode = core0;
+}
+void miningRequestReset(bool counters, bool best) {
+  if (counters) resetCounters = true;
+  if (best) resetBest = true;
 }
 int  miningBackend() { return backendMode; }
 bool miningCore0()   { return core0Mode; }
@@ -453,7 +458,33 @@ void miningStatsTick(uint32_t now) {
   miner.hrCore0 = (uint32_t)((uint64_t)(h1-last1)*1000/dt);
   miner.hashrate = miner.hrCore1 + miner.hrCore0;
   last0 = h0; last1 = h1; tLast = now;
+  // Zurücksetzen aus dem Dashboard. Jobs und Shares zählt dieser Task selbst, deshalb erst hier.
+  if (resetCounters) {
+    resetCounters = false;
+    miner.jobs = miner.sharesSent = miner.sharesOk = miner.sharesRej = 0;
+    sentAtDiag = 0;   // sonst läuft Shares/min in der nächsten DIAG-Zeile über
+    logMsg("MINE","Jobs und Shares auf 0 gesetzt");
+  }
+  if (resetBest) {
+    resetBest = false;
+    portENTER_CRITICAL(&statMux);
+    miner.bestDiff = miner.bestDiffAllTime = 0;
+    bestDirty = false;
+    portEXIT_CRITICAL(&statMux);
+    saveBestDiff();
+    logMsg("MINE","Best Diff auf 0 gesetzt");
+  }
   if (bestDirty) { bestDirty = false; saveBestDiff(); }
+
+  // Die meisten HW-Fehler entstehen in den ersten Minuten (E38). Bis 3 Minuten nach dem Start
+  // alle 5 s der Zuwachs, nur seriell. Im selben Log stehen die Abrufe von Kursen und Wetter.
+  static uint32_t tHw = 0, hwAt = 0;
+  if (now < 180000 && now - tHw >= 5000) {
+    if (miner.hwErrors != hwAt)
+      Serial.printf("[HWERR] %lus +%lu, gesamt %lu, Pruef %lu\n", (unsigned long)(now / 1000),
+                    (unsigned long)(miner.hwErrors - hwAt), (unsigned long)miner.hwErrors, (unsigned long)miner.hwCheckFails);
+    hwAt = miner.hwErrors; tHw = now;
+  }
 
   if (now - tDiag > 60000) {
     char diagMsg[170];

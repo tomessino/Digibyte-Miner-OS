@@ -167,9 +167,8 @@ def footer_lines(c, y=204):
 
 
 def bg_miner():
+    # Ohne Weltkarte: Auf der Miner-Seite stört sie die Werte (Wunsch 06.11.2026), die anderen Seiten behalten sie.
     c = Canvas((3, 12, 38), (3, 20, 62))
-    fade = lambda x, y: 0.95
-    c.world_map((6, 44, 120), box=(-8, 22, 328, 172), pitch=5, radius=1.45, fade=fade)
     # Kopfzeile
     c.vgrad_poly([(3, 3), (66, 3), (72, 9), (72, 21), (66, 27), (3, 27)], (10, 80, 215), (5, 42, 140))
     c.poly([(3, 3), (66, 3), (72, 9), (72, 21), (66, 27), (3, 27)], outline=BRIGHT, width=1.0, glow=True)
@@ -179,8 +178,10 @@ def bg_miner():
     logo = circle_crop("2_miner.jpg", (80, 225, 354, 499), 56)
     c.paste_rgba(logo, 8, 42)
     c.paste_rgba(emblem.robot(72, 63), 66, 31)
-    c.text((102, 106), "DIGIBYTE", 12, WHITE, bold=True, italic=True, anchor="ms")
-    c.text((102, 119), "MINER", 11, BRIGHT, bold=True, italic=True, anchor="ms")
+    # Titel wie im Browser-Tab: "Digibyte Miner OS" (Wunsch 06.11.2026)
+    c.text((102, 105), "Digibyte", 12, WHITE, bold=True, italic=True, anchor="ms")
+    c.text((102, 118), "Miner", 11, BRIGHT, bold=True, italic=True, anchor="ms")
+    c.text((102, 130), "OS", 11, BRIGHT, bold=True, italic=True, anchor="ms")
     # Die Symbole der vier Werte zeichnet die Firmware (MASKS), sie leuchten bei neuen Werten grün.
     # Block-Zähler als Plakette unten rechts am Logo
     c.poly([(56 + 10.5 * math.cos(a / 12 * math.tau), 88 + 10.5 * math.sin(a / 12 * math.tau)) for a in range(12)],

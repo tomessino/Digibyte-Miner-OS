@@ -5,7 +5,8 @@ const char DASH_HTML[] PROGMEM = R"TOMFW(<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tomessino DGB Miner</title>
+<title>Digibyte Miner OS</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAAYFBMVEUIHWIFV9EFR61aaJLX2+QEM5A2R3oGJGEAYf8GOY8GR6gAVaqutckGOZIDEWeQmrQFBiIA//95hKYAAP8GLXYESLEJUsEDFD8AAKq6wNIBF1oAAAADaPT5+vsBcf4CHGJ49TtzAAAAIHRSTlP/8dj///z/WwKiogP/XBr/LAH/AZNrtUwD//8A/f/9/95lsN0AAAGtSURBVHjadVOJdtwgDBQYn+uNN5s0TQCL///LzAjc2j30fAAz6JakKi94H+PsIcudm1sDpP6wHb3LOasqvu6e0nQhAG5YI5HydiK8u4zDvpdSRHpsNC/VLgmvaTY4/hLx0PORXt+MMBl+ggveHko+6IfAv3fY7e2Yl+3Bx6kuYMhn+uk0Syyl8K4MgoerArX3NMmUvCruwznKc5c1GB4lqwMhjfgDj51JCM997cR0eKqQ1JuBKPtJwkY/TIU8HBXEuO4XWemoV/cisNCbcxB+aIaMgbFq/iFzzjWsKAJw4J+MTszGIvCktARsdg5/D0KEeRBcJRReDEblwtSeCYgT956sFhfriZAbgXEIfaEFZjMWEg4n7RzB0cWwb9VxOjlmK2RVjBRakFstXJ8RpiWKQiAEy8Gz1d0ShVrRhik40iyt8pZqFsszhnWFgn3rDhgKMovFclu7QId8hd8wm8qj3Lc01oaJwxA7OfUljsd0Y8sh0lrxeMGzzgBr02o+N22L0Fqytf3CaZI/2n452p4yOz0Gp3Bw8mVw/jV6frwO79SGV9UG0/89vLf/jf83VJdQmD1RDzwAAAAASUVORK5CYII=">
 <style>
 :root{--bg:#020a1e;--bg2:#04122e;--panel:#061a3f;--panel2:#082353;--line:#1060f0;--line2:#0f3f9c;--blue:#1e82ff;--blue2:#5eb0ff;--text:#ecf3ff;--mute:#8aa7d6;--ok:#28d246;--bad:#ff5a4d;--warn:#ffc53d;--mono:ui-monospace,'SF Mono','Cascadia Mono','DejaVu Sans Mono',Consolas,monospace}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -108,8 +109,8 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol><symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0zM7 6H3v2a4 4 0 0 0 4 4M17 6h4v2a4 4 0 0 1-4 4M12 14v4M8 21h8M9 18h6v3H9z"/></symbol><symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 12l3 3 5-6"/></symbol><symbol id="i-pick" viewBox="0 0 24 24"><path d="M14 6 3 21M8 3c6-1 11 3 13 9-4-4-9-7-13-9z"/></symbol><symbol id="i-chip" viewBox="0 0 24 24"><path d="M7 7h10v10H7zM10 2v3M14 2v3M10 19v3M14 19v3M2 10h3M2 14h3M19 10h3M19 14h3"/></symbol><symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M6 9v12h12V9"/></symbol><symbol id="i-swarm" viewBox="0 0 24 24"><path d="M12 2l4 2.3v4.6L12 11 8 8.9V4.3zM6 12l4 2.3v4.6L6 21l-4-2.1v-4.6zM18 12l4 2.3v4.6L18 21l-4-2.1v-4.6z"/></symbol><symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></symbol><symbol id="i-list" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h8M8 17h5"/></symbol><symbol id="i-restart" viewBox="0 0 24 24"><path d="M20 11A8 8 0 1 0 18 17M20 4v7h-7"/></symbol><symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol><symbol id="i-market" viewBox="0 0 24 24"><path d="M3 21h18M6 17V11M11 17V7M16 17v-4M20 17V5"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><path d="M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4"/></symbol><symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z"/></symbol></defs></svg>
 <header class="head">
-  <img class="logo" src="data:image/png;base64,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" alt="">
-  <div class="brand">DIGIBYTE<b>MINER</b></div>
+  <img class="logo" src="data:image/png;base64,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" alt="">
+  <div class="brand">Digibyte<b>Miner OS</b></div>
   <div class="status">
     <span class="h-opt" id="h-fw">--</span>
     <span class="h-opt" id="h-time">--:--:--</span>
@@ -125,7 +126,7 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
       <a class="nav-item" onclick="sw('set',this)"><svg class="i" viewBox="0 0 24 24"><use href="#i-gear"/></svg>Settings</a>
       <a class="nav-item" onclick="sw('log',this)"><svg class="i" viewBox="0 0 24 24"><use href="#i-list"/></svg>Logs</a>
     </div>
-    <img class="figure" src="data:image/png;base64,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" alt="">
+    <img class="figure" src="data:image/png;base64,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" alt="">
     <div class="sidebar-foot">© 2026 Tomessino | <a href="https://github.com/Tomessino" target="_blank" rel="noopener">GitHub</a></div>
   </nav>
   <main style="flex:1;min-width:0;display:flex;flex-direction:column">
@@ -179,7 +180,7 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
         <div class="row"><span class="rl">Uptime</span><span class="rv" id="ds-up">--</span></div>
         <div class="row"><span class="rl">Temperatur (Chip, ungefähr)</span><span class="rv" id="ds-temp">--</span></div>
         <div class="row"><span class="rl">Hashrate Kern 1 / Kern 0</span><span class="rv" id="ds-core">--</span></div>
-        <div class="row"><span class="rl">Hardware-Fehler</span><span class="rv" id="ds-hwerr">--</span></div>
+        <div class="row"><span class="rl">HW-Lesefehler</span><span class="rv" id="ds-hwerr">--</span></div>
         <div class="row"><span class="rl">Free Heap</span><span class="rv" id="ds-heap">--</span></div>
         <div class="row"><span class="rl">WiFi RSSI</span><span class="rv" id="ds-rssi">--</span></div>
         <div class="row"><span class="rl">WiFi IP</span><span class="rv" id="ds-ip">--</span></div>
@@ -232,18 +233,24 @@ svg.sg{filter:drop-shadow(0 0 2px currentColor)}
       <div class="irow"><label>Pool URL</label><input id="c-p1h" placeholder="dgb-stratum.solominer.net"/></div>
       <div class="irow"><label>Port</label><input id="c-p1p" type="number"/></div>
       <div class="irow"><label>Wallet Address</label><input id="c-wallet" placeholder="D..."/></div>
+      <div class="irow"><label>Worker-Name</label><input id="c-worker" maxlength="32" placeholder="dgb_worker1"/></div>
+      <div class="note">Der Name trennt deine Miner im Pool und im Swarm. Steht er schon hinter der Wallet (D....name), gilt dieser und das Feld wird ignoriert. Erlaubt: Buchstaben, Ziffern, _ und -, höchstens 32 Zeichen.</div>
       <div class="irow"><label>Pool Password</label><input id="c-pass" placeholder="leer = unverändert"/></div>
       <div class="sub">Fallback Pool</div>
       <div class="irow"><label>Pool URL</label><input id="c-p2h" placeholder="eu.digi.hmpool.io"/></div>
       <div class="irow"><label>Port</label><input id="c-p2p" type="number"/></div>
       <div class="btn-row"><button class="btn prim" onclick="doSave()">Save</button></div>
     </div>
+    <div class="sec"><h3><svg class="i" viewBox="0 0 24 24"><use href="#i-restart"/></svg>Zähler</h3>
+      <div class="note">Setzt sofort zurück, ohne Neustart. Gefundene Blöcke bleiben.</div>
+      <div class="btn-row">
+        <button class="btn dng" onclick="if(confirm('Jobs und Shares auf 0 setzen?')){send({action:'resetStats'});toast('Jobs und Shares zurückgesetzt')}">Jobs und Shares zurücksetzen</button>
+        <button class="btn dng" onclick="if(confirm('Best Diff auf 0 setzen? Das gilt für die Sitzung und den gespeicherten Gesamtwert.')){send({action:'resetBest'});toast('Best Diff zurückgesetzt')}">Best Diff zurücksetzen</button>
+      </div>
+    </div>
     <div class="sec"><h3><svg class="i" viewBox="0 0 24 24"><use href="#i-gear"/></svg>Preference</h3>
       <div class="irow"><label>Brightness (1-255)</label><input id="c-bright" type="number" min="20" max="255"/></div>
       <div class="irow"><label>Display dimmen nach (s, 0 = nie)</label><input id="c-scto" type="number" min="0"/></div>
-      <div class="irow"><label>CPU Freq</label>
-        <select id="c-cpu"><option value="80">80 MHz</option><option value="160">160 MHz</option><option value="240">240 MHz</option></select>
-      </div>
       <div class="sub">RGB-LED (Rückseite)</div>
       <div class="note">Änderungen sind sofort zu sehen, gespeichert wird erst mit Save.</div>
       <div class="irow"><label>Modus</label>
@@ -387,7 +394,9 @@ function applyState(d){
   set('ds-up',fmtUp(d.uptime||0));
   const hc1=fmtHr(d.hrCore1||0),hc0=fmtHr(d.hrCore0||0);
   set('ds-core',hc1.v+' '+hc1.u+' / '+hc0.v+' '+hc0.u);
-  set('ds-hwerr',d.hwErrors||0);
+  // Quote der Rundenprüfung statt der Zahl verworfener Treffer, die bei jedem HTTPS-Abruf um Tausende wächst (docs/TECHNIK.md)
+  const hwp=d.hwChecks>0?(d.hwCheckFails||0)/d.hwChecks*100:-1;
+  set('ds-hwerr',hwp<0?'--':hwp.toFixed(hwp<0.1?3:2)+'%');
   set('ds-temp',fmtTemp(d.temp));
   set('ds-heap',d.freeHeap?Math.round(d.freeHeap/1024)+' KB':'--');
   document.getElementById('ds-rssi').innerHTML=rssiBars(d.rssi||0)+(d.rssi||'--')+' dBm';
@@ -404,11 +413,11 @@ function applyState(d){
   // Settings (einmalig)
   if(!sd&&d.pool1Host){
     document.getElementById('c-wallet').value=d.wallet||'';
+    document.getElementById('c-worker').value=d.workerCfg??'';
     document.getElementById('c-p1h').value=d.pool1Host||'';
     document.getElementById('c-p1p').value=d.pool1Port||3333;
     document.getElementById('c-p2h').value=d.pool2Host||'';
     document.getElementById('c-p2p').value=d.pool2Port||3337;
-    document.getElementById('c-cpu').value=String(d.cpuMhz||240);
     document.getElementById('c-bright').value=d.brightness||200;
     document.getElementById('c-scto').value=d.screenTimeout??60;
     document.getElementById('c-tz').value=d.timezone??1;
@@ -505,19 +514,25 @@ function doWifi(){
   document.getElementById('s-wpw').value='';
   toast('WLAN wird getestet, Ergebnis steht im Log',6000);
 }
+// Wie validWorkerName() in der Firmware
+const okName=s=>/^[A-Za-z0-9_-]{1,32}$/.test(s);
 function doSave(){
+  const wa=document.getElementById('c-wallet').value,wk=document.getElementById('c-worker').value;
+  const dot=wa.indexOf('.');
+  if(dot>=0&&dot<wa.length-1&&!okName(wa.slice(dot+1))){toast('Name hinter der Wallet: nur Buchstaben, Ziffern, _ und -, höchstens 32',6000);return;}
+  if(wk&&!okName(wk)){toast('Worker-Name: nur Buchstaben, Ziffern, _ und -, höchstens 32',6000);return;}
   const extra={watchlist:watchValue(),webPassClear:document.getElementById('c-webclr').value==='1'};
   const pw=document.getElementById('c-webpw').value;
   if(pw)extra.webPass=pw;
   const pp=document.getElementById('c-pass').value;
   if(pp)extra.workerPw=pp;   // Leer heißt unverändert, das Feld wird nicht vorbelegt
   send({...extra,action:'save',
-    wallet:document.getElementById('c-wallet').value,
+    wallet:wa,
+    worker:wk,
     pool1Host:document.getElementById('c-p1h').value,
     pool1Port:parseInt(document.getElementById('c-p1p').value)||3333,
     pool2Host:document.getElementById('c-p2h').value,
     pool2Port:parseInt(document.getElementById('c-p2p').value)||3337,
-    cpuMhz:parseInt(document.getElementById('c-cpu').value)||240,
     brightness:parseInt(document.getElementById('c-bright').value)||200,
     screenTimeout:num('c-scto',60,parseInt),
     timezone:num('c-tz',1,parseFloat),

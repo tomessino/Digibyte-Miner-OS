@@ -67,7 +67,7 @@ struct UiData {
   double   bestSession;
   double   bestAll;
   uint32_t sharesOk;
-  uint32_t sharesTotal;
+  uint32_t sharesRej;
   // Kurse
   double   btcUsd, btcChg;
   UiCoin   coins[6];

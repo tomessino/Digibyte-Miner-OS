@@ -18,10 +18,10 @@ DigiByte-SHA-256d-Solo-Miner für das ESP32-2432S028R („Cheap Yellow Display�
 Fertige Firmware flashen (löscht **alle** Einstellungen auf dem Board):
 
 ```bash
-esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600 write-flash 0x0 Tomessino-DGB-Miner-v7.6.0-firmware.bin
+esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600 write-flash 0x0 Tomessino-DGB-Miner-v7.7.0-firmware.bin
 ```
 
-Die Datei gibt es unter den Releases des Repositorys, falls dort eine eingestellt ist. Der passende Quellcode ist dieses Repository beim Tag `v7.6.0`. Selbst bauen: [docs/INSTALLATION.md](docs/INSTALLATION.md).
+Die Datei gibt es unter den Releases des Repositorys, falls dort eine eingestellt ist. Der passende Quellcode ist dieses Repository beim Tag `v7.7.0`. Selbst bauen: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 Danach:
 1. Mit dem WLAN `DGB-Miner-Setup` verbinden und `192.168.4.1` öffnen.
@@ -38,7 +38,7 @@ Am PC gerendert mit Beispieldaten, nicht vom Gerät fotografiert.
 
 ## Stand
 
-Getestet auf einem einzelnen Board (ESP32-D0WD-V3, Revision 3.1) mit dem Pool `dgb-stratum.solominer.net`.
+Getestet auf zwei Boards (beide ESP32-D0WD-V3, Revision 3.1) mit dem Pool `dgb-stratum.solominer.net`. Bis 7.6.0 lief alles auf dem ersten, 7.7.0 auf dem zweiten.
 
 | Geprüft am Gerät | Ergebnis |
 |---|---|
@@ -50,6 +50,9 @@ Getestet auf einem einzelnen Board (ESP32-D0WD-V3, Revision 3.1) mit dem Pool `d
 | Dauerlauf 9 Stunden (Testbau 7.6.0-t38, gleiche Mining-Schleife wie 7.6.0) | kein Neustart, 2248 von 2308 Shares akzeptiert, angezeigt rund 965 kH/s |
 | Pool-Messung 2 Stunden (Testbau 7.6.0-t38) | 478 von 486 Shares akzeptiert, am Pool 913 ± 42 kH/s, mit abgelehnten 929 ± 42 kH/s, angezeigt 968 kH/s |
 | WLAN-Start direkt nach einem Reset durch esptool (7.6.0) | viermal im ersten Versuch verbunden |
+| Lauf 4 Minuten mit Seitenwechsel alle 5 s (7.7.0) | kein Absturz, alle 5 Seiten gezeichnet, längstes Zeichnen 95 ms, 23 von 26 Shares akzeptiert, im Mittel 968 kH/s |
+| Pool-Anmeldung mit `Adresse.name` als Wallet (7.7.0) | Anmeldung angenommen, Worker heißt im LAN wie der Name hinter der Wallet |
+| Jobs und Shares über das Dashboard zurücksetzen (7.7.0) | Zähler auf 0, Best Diff unverändert, kein Neustart |
 
 **Noch nicht geprüft:**
 - Laufzeiten über 9 Stunden am Stück
@@ -58,6 +61,8 @@ Getestet auf einem einzelnen Board (ESP32-D0WD-V3, Revision 3.1) mit dem Pool `d
 - Dashboard-Passwort und Erfolgsfall beim WLAN-Wechsel
 - Neustart nach dem Speichern im WLAN-Portal (7.5.0)
 - Ob der zweite WLAN-Versuch beim Start einen Fehlschlag auffängt (7.6.0). Bisher klappte immer schon der erste.
+- Best Diff über das Dashboard zurücksetzen und Speichern von Wallet-Namen oder Worker-Feld im Dashboard (7.7.0)
+- Wie der Pool den Worker-Namen anzeigt (7.7.0)
 - Andere Boards und Displays. Die Farbeinstellung in `setup()` gilt für das getestete Panel.
 
 Details: [docs/TECHNIK.md](docs/TECHNIK.md), Tests: [docs/TESTS.md](docs/TESTS.md), Änderungen: [CHANGELOG.md](CHANGELOG.md).
